@@ -1,8 +1,8 @@
 # Agent Market 项目状态
 
-**最后更新**: 2026-06-07 10:15
-**当前阶段**: Phase 4 ✅ **完成** (Phase 4.1, 4.3, 4.6 完成)
-**完成度**: Phase 1: 100% ✅ | Phase 2: 100% ✅ | Phase 3: 100% ✅ | Phase 4: 100% ✅
+**最后更新**: 2026-06-07 18:55
+**当前阶段**: Phase 5 ✅ **完成** | Phase 6 📋 **规划中**
+**完成度**: Phase 1: 100% ✅ | Phase 2: 100% ✅ | Phase 3: 100% ✅ | Phase 4: 100% ✅ | Phase 5: 100% ✅
 
 ---
 
@@ -187,6 +187,86 @@ Import → Market → Download → Deploy
 4. ✅ **错误处理** - 用户友好的错误消息和建议
 5. ✅ **快速启动** - 5 个模板一键创建 agent
 6. ✅ **自举闭环** - 系统可以用 agent 创建 agent 🚀
+
+---
+
+## ✅ Phase 5 完成 (2026-06-07)
+
+**开始日期**: 2026-06-06  
+**完成日期**: 2026-06-07  
+**完成度**: 100%
+
+### 已完成 ✅
+
+- [x] **Task 5.1: Pipeline Engine Core** ✅ — 87 tests
+  - YAML 解析器、执行上下文管理、Pipeline 执行引擎、模板变量系统
+
+- [x] **Task 5.2: 7 Builtin Tools** ✅ — 127 tests
+  - read_file, write_file, bash, glob, llm_chat, web_fetch, web_search
+
+- [x] **Task 5.3: Subagent Mechanism** ✅ — 36 tests
+  - ToolRegistry parent pointer 继承，上下文隔离
+
+- [x] **Task 5.4: CLI Run Command** ✅ — 6 tests
+  - `agent-deploy run <agent-dir>` 命令
+
+- [x] **Task 5.5: V2 Compatibility** ✅ — 18 tests
+  - 自动检测 + 转换 v2 agents
+
+- [x] **Task 5.6: Integration Tests** ✅ — 7 tests
+
+- [x] **Task 5.7-5.9: MCP/Skill/Memory 接口** ✅
+
+- [x] **Task 5.10: `use` CLI 命令 + invoke_agent** ✅
+  - `agent-deploy use` 一键下载安装
+  - install.ts 路径修复
+  - codebuddy_agent 适配器 pipeline 感知
+  - data-processor-agent invoke_agent → notification-agent → Bark 通知
+
+**Phase 5 成就**:
+1. ✅ **Runtime Engine** — 完整的 Pipeline 执行引擎
+2. ✅ **8 Builtin Tools** — read/write/bash/glob/llm/web_fetch/web_search/invoke_agent
+3. ✅ **Agent 组合** — invoke_agent 实现 Agent 间调用
+4. ✅ **一键部署** — `agent-deploy use` 从 Market 到 CC 一步完成
+5. ✅ **345 tests** — 100% 通过
+
+---
+
+## 🔧 Phase 6.0 完成 (2026-06-07)
+
+**开始日期**: 2026-06-07  
+**完成日期**: 2026-06-07 (同日)  
+**完成度**: Phase 6.0 100%
+
+### 已完成 ✅
+
+- [x] **Task 6.1: Tool Registry 重构** ✅
+  - 移除全局变量，通过 ExecutionContext 传递 registry
+  - ToolRegistry.attach() / from() 静态方法
+  - 嵌套 invoke_agent 支持
+
+- [x] **Task 6.2: 从市场加载 Agent + 缓存** ✅
+  - AgentCache — manifest.json + semver 版本匹配
+  - MarketAgentLoader — market:// URL → 自动下载
+  - FileSystemAgentLoader — 本地路径
+  - AgentResolver — 统一 loader 接口
+
+- [x] **Task 6.3: 依赖声明和自动解析** ✅
+  - agent.json → dependencies.agents
+  - DependencyResolver — 递归解析 + 循环检测 (DFS)
+  - agent-deploy run 初始化阶段自动解析
+
+**Phase 6.0 成就**:
+1. ✅ **context-based registry** — 优雅的工具继承
+2. ✅ **market:// URL** — 从市场动态加载 Agent
+3. ✅ **AgentCache** — 本地缓存，二次运行零网络开销
+4. ✅ **自动依赖解析** — 声明即自动下载
+5. ✅ **345 tests** — 全部通过
+
+### 待开发（Phase 6.1+）
+- [ ] 并发调用 (invoke_agent_parallel)
+- [ ] 错误处理 + 重试
+- [ ] 资源管理 + 监控
 
 ---
 
