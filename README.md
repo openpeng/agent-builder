@@ -1,388 +1,228 @@
-# Agent Market 🚀
+# Agent Market
 
 **一个跨平台的 AI Agent 市场与部署系统**
 
-[![Status](https://img.shields.io/badge/Phase_2-完成-brightgreen.svg)](./STATUS.md)
-[![Tests](https://img.shields.io/badge/Tests-62%2F62-brightgreen.svg)](./agent-deploy/node/tests/)
-[![Docs](https://img.shields.io/badge/Docs-16_files-blue.svg)](./docs/)
+[![Status](https://img.shields.io/badge/Phase_6-完成-brightgreen.svg)](./STATUS.md)
+[![Tests](https://img.shields.io/badge/Tests-345+-brightgreen.svg)](./agent-deploy/node/tests/)
+[![Docs](https://img.shields.io/badge/Docs-30+_files-blue.svg)](./docs/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Security](https://img.shields.io/badge/Security-Read_First-red.svg)](./docs/SECURITY.md)
 
 ---
 
-## 📖 项目简介
+## 项目简介
 
-Agent Market 旨在打造一个真正的 **Agent-centric** 平台：
-- 🎯 **以 agent.json 为核心** - 统一的 Agent 描述格式
-- 🔄 **双向互操作** - Export (部署) + Import (导入)
-- 📦 **跨平台分发** - 支持 8+ AI 工具的双向转换
-- 🔌 **可扩展架构** - 易于添加新平台支持
+Agent Market 是一个 **Agent-centric** 的跨平台 AI Agent 互操作平台：
 
----
+- **以 agent.json 为核心** — 统一的 Agent 描述格式，消除工具锁定
+- **双向互操作** — Export (部署到 AI 工具) + Import (从 AI 工具导入)
+- **跨平台分发** — 支持 8+ AI 编码工具的格式转换
+- **Market 市场** — 上传、搜索、下载、评分 Agent
+- **Runtime 引擎** — YAML Pipeline 引擎，8 个内置工具 + 子 Agent 编排
 
-## ✨ Phase 1 + Phase 2 完成 (2026-06-06)
-
-### Phase 1: Export (部署到 AI 工具) ✅
-✅ **消除 SKILL.md 硬依赖** - agent.json 成为真正核心  
-✅ **多格式支持** - 统一适配 3 种 Agent 格式  
-✅ **跨平台部署** - 部署到 8+ AI 编码工具  
-✅ **100% 向后兼容** - 所有现有 agents 继续工作
-
-### Phase 2: Import (从 AI 工具导入) ✅
-✅ **从 4 平台导入** - Cursor, Claude Code, CodeBuddy, GitHub  
-✅ **自动检测格式** - 智能识别平台类型  
-✅ **CLI 命令** - `agent-deploy import` 命令行工具  
-✅ **MCP 工具** - `import_agent` MCP 集成
-
-### 核心成就
-- ✅ **62 个测试全部通过** (31 export + 31 import)
-- ✅ **16 份完整文档** (~120 KB)
-- ✅ **完整双向生态** - Import ↔ Export 全流程
-- ✅ **零破坏性变更** - 100% 向后兼容
+> **安全提示**: 从 Market 下载的 Agent 默认在受限模式下运行。使用 `--trusted` 标志前请确保信任来源。详见 [SECURITY.md](./docs/SECURITY.md)。
 
 ---
 
-## 🚀 快速开始
+## 当前进度
 
-### Export: 部署 Agent 到 AI 工具
+| Phase | 内容 | 状态 |
+|-------|------|------|
+| Phase 1 | Export — 部署到 AI 工具 | ✅ 完成 |
+| Phase 2 | Import — 从 AI 工具导入 | ✅ 完成 |
+| Phase 3 | Market Integration — 上传/下载 | ✅ 完成 |
+| Phase 4 | Enhanced UX — 列表/搜索/错误处理 | ✅ 完成 |
+| Phase 5 | Runtime Engine — Pipeline + 内置工具 | ✅ 完成 |
+| Phase 6 | Agent Composition — 依赖/缓存/编排 | ✅ 完成 |
+| Phase 7 | Security & Quality — 安全/质量治理 | 📋 规划中 |
 
-**MCP 模式** - 通过 AI 助手：
-> **你：** 帮我把 "code-reviewer" 装到 Cursor 里。
+---
 
-**CLI 模式** - 命令行（即将支持）：
+## 快速开始
+
+### 初始化 Agent
+
 ```bash
+# 从模板创建
+agent-deploy init agent-builder -n code-reviewer
+
+# 列出可用模板
+agent-deploy templates
+```
+
+### 部署 Agent 到 AI 工具
+
+```bash
+# 自动检测工具并部署
+agent-deploy deploy ./my-agent
+
+# 指定工具
 agent-deploy deploy ./my-agent --tool cursor
 ```
 
-### Import: 从 AI 工具导入 Agent
+### 从 Market 下载并使用
 
-**CLI 模式** - 命令行：
 ```bash
-# 基础导入
+# 一键下载 + 适配 + 安装
+agent-deploy use agent-maker-tutorial
+
+# 从 Market 搜索
+agent-deploy search "code review"
+```
+
+### 运行 Agent (Runtime Engine)
+
+```bash
+# 执行 Agent Pipeline
+agent-deploy run ./my-agent --args "file=src/app.ts"
+
+# 调试模式
+agent-deploy run ./my-agent --verbose --dry-run
+```
+
+### 从 AI 工具导入 Agent
+
+```bash
+# 从 Cursor 导入
 agent-deploy import .cursor/commands/my-agent.md
 
 # 预览模式
 agent-deploy import .claude/commands/skill.md --dry-run
-
-# 自定义输出
-agent-deploy import agent.md -o ./my-agents
 ```
 
-**MCP 模式** - 通过 AI 助手：
-> **你：** Import the agent from .cursor/commands/code-reviewer.md
+### 发布到 Market
+
+```bash
+# 上传 Agent
+agent-deploy upload ./my-agent --market http://tx.aitboy.cn:15795 --api-key pd_mkt_xxx
+```
 
 ---
 
-## 📁 项目结构
+## 架构概览
+
+```
+agent.json (唯一真相来源)
+    │
+    ├──→ [Export] adapt.ts → 8+ AI 工具格式
+    │
+    ├──→ [Import] import-manager.ts → agent.json
+    │
+    ├──→ [Market] upload/download/search
+    │
+    └──→ [Runtime] Pipeline Engine
+              ├── 8 内置工具 (read/write/bash/glob/llm/web_fetch/web_search/invoke_agent)
+              ├── MCP 工具集成
+              ├── 子 Agent 编排
+              └── 依赖解析 + 缓存
+```
+
+---
+
+## 支持的工具
+
+| 方向 | 工具 | 数量 |
+|------|------|------|
+| Export | Cursor, Claude Code, CodeBuddy, GitHub Copilot, OpenCode, Windsurf, Trae, Aider, AGENTS.md | 9 |
+| Import | Cursor, Claude Code, CodeBuddy, GitHub Copilot | 4 |
+
+---
+
+## 测试
+
+| 测试套件 | 测试数 | 状态 |
+|----------|--------|------|
+| Export (adapt) | 22 | ✅ |
+| Import | 31 | ✅ |
+| Pipeline Engine | 87 | ✅ |
+| Built-in Tools | 127 | ✅ |
+| Subagent | 36 | ✅ |
+| V2 Compat | 18 | ✅ |
+| CLI / E2E | 13 | ✅ |
+| Other (server/context/parser/template/registry) | 11+ | ✅ |
+| **总计** | **345+** | **✅** |
+
+```bash
+cd agent-deploy/node && npm test
+```
+
+---
+
+## 项目结构
 
 ```
 agent-market/
-├── README.md                    # 本文件
-├── STATUS.md                    # 项目当前状态 ✨ 已更新
-├── README_PROJECT.md            # 详细项目说明
-├── COMPLETION_SUMMARY.txt       # Phase 1+2 完成摘要
-├── docs/                        # 📚 所有文档
-│   ├── README.md                # 文档导航
-│   ├── phase1/                  # Phase 1 文档
-│   ├── phase2/                  # ✨ Phase 2 文档 (NEW)
-│   │   ├── PHASE2_PLAN.md
-│   │   ├── PHASE2_PROGRESS.md
-│   │   ├── IMPORT_ADAPTER_SPEC.md
-│   │   ├── IMPORT_AGENT_TOOL_GUIDE.md
-│   │   ├── CLI_IMPORT_GUIDE.md
-│   │   └── TASK4_SUMMARY.md
-│   ├── specs/                   # 技术规范
-│   └── reports/                 # 分析报告
-├── agent-deploy/                # 🚀 部署工具
-│   ├── README.md                # ✨ 已更新
-│   ├── AGENT_FORMATS.md         # ✨ 已更新 (添加 Import 部分)
-│   ├── node/                    # Node.js 实现
-│   │   ├── src/
-│   │   │   ├── types.ts         # ✨ 新增
-│   │   │   ├── adapt.ts         # Export: agent.json → AI tools
-│   │   │   ├── import.ts        # ✨ Import: AI tools → agent.json (NEW)
-│   │   │   ├── import-manager.ts # ✨ 导入管理器 (NEW)
-│   │   │   ├── cli.ts           # ✨ CLI 入口 (NEW)
-│   │   │   ├── detect.ts
-│   │   │   ├── install.ts
-│   │   │   ├── index.ts         # MCP Server
-│   │   │   └── adapters/
-│   │   │       ├── cursor-import.ts      # ✨ NEW
-│   │   │       ├── claude-import.ts      # ✨ NEW
-│   │   │       ├── codebuddy-import.ts   # ✨ NEW
-│   │   │       └── github-import.ts      # ✨ NEW
-│   │   └── tests/
-│   │       ├── adapt.test.ts    # 22 tests (Export)
-│   │       ├── server.test.ts   # 9 tests
-│   │       ├── import.test.ts   # ✨ 20 tests (Import Unit) (NEW)
-│   │       └── import-mcp.test.ts # ✨ 11 tests (Import MCP) (NEW)
-│   └── python/                  # Python 实现
-├── test-agents/                 # 🧪 测试用例
-└── downloads/                   # 📥 下载的示例
+├── agent-deploy/           # 部署工具 (TypeScript, Node.js)
+│   └── node/src/
+│       ├── adapt.ts        # Export: agent.json → AI 工具
+│       ├── import.ts       # Import: AI 工具 → agent.json
+│       ├── cli.ts          # CLI 入口 (10 命令)
+│       ├── index.ts        # MCP Server (7 工具)
+│       ├── market.ts       # Market 客户端
+│       └── runtime/        # Runtime Engine
+│           ├── pipeline.ts # Pipeline 引擎
+│           ├── tools/      # 8 内置工具
+│           └── ...
+├── agent-market/           # Market 服务 (Python, FastAPI)
+│   └── src/market/
+│       ├── server.py       # REST API
+│       ├── database.py     # SQLite
+│       └── auth.py         # API Key 认证
+├── agent-protocol/         # Agent 协议规范
+│   └── specs/              # agent-json-v3, worker-yaml, etc.
+├── docs/                   # 阶段文档 (30+ 份)
+└── test-agents/            # 测试用例
 ```
 
 ---
 
-## 📚 文档导航
+## 路线图
 
-### 必读文档
-1. [STATUS.md](./STATUS.md) - 项目当前状态 (Phase 2 完成)
-2. [agent-deploy/README.md](./agent-deploy/README.md) - agent-deploy 完整指南
-3. [agent-deploy/AGENT_FORMATS.md](./agent-deploy/AGENT_FORMATS.md) - Agent 格式 + Import/Export
+### ✅ Phase 1-6: 已全部完成
+- Export (agent.json → 9 AI 工具格式)
+- Import (4 AI 工具格式 → agent.json)
+- Market (上传/下载/搜索)
+- UX 增强 (列表/信息/错误处理/模板)
+- Runtime (Pipeline + 8 内置工具 + 子 Agent 编排)
+- Composition (Market 依赖解析 + Agent 缓存 + `use` 命令)
 
-### Phase 1 文档
-- [PHASE1_COMPLETION_REPORT.md](./docs/phase1/PHASE1_COMPLETION_REPORT.md) - Phase 1 完成报告
-- [IMPROVEMENT_PROPOSAL.md](./IMPROVEMENT_PROPOSAL.md) - 改进提案
-
-### Phase 2 文档 (新增)
-- [PHASE2_PLAN.md](./docs/phase2/PHASE2_PLAN.md) - Phase 2 计划
-- [PHASE2_PROGRESS.md](./docs/phase2/PHASE2_PROGRESS.md) - Phase 2 进度
-- [IMPORT_ADAPTER_SPEC.md](./docs/phase2/IMPORT_ADAPTER_SPEC.md) - ImportAdapter 接口规范
-- [IMPORT_AGENT_TOOL_GUIDE.md](./docs/phase2/IMPORT_AGENT_TOOL_GUIDE.md) - import_agent MCP 工具
-- [CLI_IMPORT_GUIDE.md](./docs/phase2/CLI_IMPORT_GUIDE.md) - CLI 导入命令指南
-
-### 完整文档
-查看 [docs/README.md](./docs/README.md) 获取完整文档导航。
+### 📋 Phase 7: 安全 & 质量治理 (进行中)
+- Runtime 沙箱与权限模型
+- 上传包安全扫描
+- API Key 哈希存储
+- Agent 生命周期管理 (active/deprecated/suspended)
+- 发布前质量门禁
+- Rate Limiting
 
 ---
 
-## 🎯 核心组件
+## 贡献
 
-### 1. agent-deploy
-双向部署工具，支持：
-- **Export**: 将 agent.json 部署到任何 AI 编码工具
-- **Import**: 从 AI 工具导入回 agent.json
+欢迎贡献。开发环境要求：
 
-**Export 特性**:
-- 🔍 自动检测 AI 工具
-- 📥 从 Market 下载 Agent
-- 🔄 格式适配转换
-- 📁 自动安装部署
-
-**Import 特性**:
-- 📤 从 4 平台导入
-- 🎯 自动格式检测
-- 💻 CLI 命令
-- 🔧 MCP 工具集成
-
-**支持的工具**:
-
-| 方向 | 工具 | 状态 |
-|------|------|------|
-| **Export** | Cursor, Claude Code, CodeBuddy, GitHub Copilot, OpenCode, Windsurf, Trae, Aider | ✅ 8 个 |
-| **Import** | Cursor, Claude Code, CodeBuddy, GitHub Copilot | ✅ 4 个 |
-
-### 2. agent-market (服务端)
-Agent 市场服务，提供 Agent 的存储、检索、分发。
-
-**特性**:
-- 📦 Agent 打包上传
-- 🔎 搜索和浏览
-- 📊 版本管理
-- 🏷️ 分类标签
-
----
-
-## 🧪 测试
-
-### 测试覆盖
-```
-✅ 62 个单元测试
-✅ 100% 通过率
-✅ 覆盖所有格式
-✅ 完整错误处理
-```
-
-### 测试细分
-| 测试套件 | 测试数 | 状态 |
-|----------|--------|------|
-| Export (adapt.test.ts) | 22 | ✅ |
-| Server (server.test.ts) | 9 | ✅ |
-| Import Unit (import.test.ts) | 20 | ✅ |
-| Import MCP (import-mcp.test.ts) | 11 | ✅ |
-| **总计** | **62** | **✅** |
-
-### 测试场景
-**Export (Phase 1)**:
-- Format A: agent.json + inline instructions ✅
-- Format B: agent.json + file instructions ✅
-- Format C: PilotDeck Agent (subagents) ✅
-- Format D: Legacy Agent (SKILL.md) ✅
-- Format E: README.md fallback ✅
-- Fallback priority ✅
-- Platform adaptation (8 tools) ✅
-
-**Import (Phase 2)**:
-- Cursor commands import ✅
-- Claude Code commands import ✅
-- CodeBuddy skills import ✅
-- GitHub Copilot agents import ✅
-- Auto-detection ✅
-- Force adapter ✅
-- Dry-run mode ✅
-- MCP tool integration ✅
-- CLI command ✅
-
----
-
-## 📊 项目指标
-
-| 指标 | Phase 1 | Phase 2 | 总计 |
-|-----|---------|---------|------|
-| 测试通过 | 31/31 ✅ | 31/31 ✅ | **62/62 ✅** |
-| 编译错误 | 0 ✅ | 0 ✅ | **0 ✅** |
-| 向后兼容 | 100% ✅ | 100% ✅ | **100% ✅** |
-| 文档数量 | 13 份 | 3 份 | **16 份** |
-| 代码质量 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **⭐⭐⭐⭐⭐** |
-
----
-
-## 🔮 路线图
-
-### ✅ Phase 1: Export (已完成 2026-06-06)
-- [x] 消除 SKILL.md 硬依赖
-- [x] agent.json 核心化
-- [x] 多格式支持
-- [x] 跨平台部署 (8 工具)
-- [x] 完整测试
-- [x] 详尽文档
-
-### ✅ Phase 2: Import (已完成 2026-06-06)
-- [x] 实现 ImportAdapter 接口
-- [x] Cursor → agent.json 导入
-- [x] Claude Code → agent.json 导入
-- [x] CodeBuddy → agent.json 导入
-- [x] GitHub Copilot → agent.json 导入
-- [x] 添加 import_agent MCP 工具
-- [x] 添加 CLI `import` 命令
-- [x] 自动检测 + 强制适配器
-- [x] Dry-run 预览模式
-
-### 🚀 Phase 3: Market Integration (计划中)
-- [ ] Upload imported agents to market
-- [ ] Download from market for import
-- [ ] Agent marketplace UI
-- [ ] Version management
-- [ ] Cross-tool migration workflow
-
-### 🚀 Phase 4: 服务端增强 (未来)
-- [ ] agent.json 验证增强
-- [ ] 元数据提取优化
-- [ ] 数据库迁移
-- [ ] API 优化
-
----
-
-## 🔄 完整工作流
-
-### Import → Modify → Export
-```bash
-# 1. 从 Cursor 导入
-agent-deploy import .cursor/commands/my-agent.md
-
-# 2. 修改 agent.json
-vim ./imported-agents/my-agent/agent.json
-
-# 3. 部署到 Claude Code
-# (via MCP)
-deploy_agent(./imported-agents/my-agent, "claude_code")
-```
-
-### 跨平台迁移
-```bash
-# 从 Cursor 导入
-agent-deploy import .cursor/commands/agent.md -o ./agents
-
-# 部署到多个工具 (via MCP)
-deploy_agent(./agents/agent, "claude_code")
-deploy_agent(./agents/agent, "codebuddy")
-deploy_agent(./agents/agent, "github_copilot")
-```
-
-### 批量导入
-```bash
-# 导入所有 Cursor agents
-for f in .cursor/commands/*.md; do
-  agent-deploy import "$f" -o ./all-agents
-done
-
-# 导入所有 Claude Code agents
-for f in .claude/commands/*.md; do
-  agent-deploy import "$f" -o ./all-agents
-done
-```
-
----
-
-## 🤝 贡献
-
-欢迎贡献！请查看各组件的 CONTRIBUTING.md。
-
-### 开发环境
 - Node.js 18+
 - Python 3.10+
 - TypeScript 5.7+
 
-### 运行测试
 ```bash
-# Node.js (所有测试)
-cd agent-deploy/node
-npm install
-npm test
-# 结果: 62 passed (62) ✅
+# 安装依赖
+cd agent-deploy/node && npm install
+cd agent-market && pip install -r requirements.txt
 
-# Python
-cd agent-deploy/python
-pytest tests/ -v
+# 运行测试
+cd agent-deploy/node && npm test
+cd agent-market && pytest
 ```
 
-### 编译代码
-```bash
-cd agent-deploy/node
-npm run build
-# 结果: 0 errors ✅
-```
+详见 [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ---
 
-## 📄 License
+## License
 
-MIT License - 详见 [LICENSE](LICENSE)
-
----
-
-## 🔗 相关链接
-
-### 主要文档
-- [agent-deploy 文档](./agent-deploy/README.md) - 完整使用指南
-- [Agent 格式指南](./agent-deploy/AGENT_FORMATS.md) - Export + Import 格式
-- [项目状态](./STATUS.md) - 当前进度和指标
-
-### Phase 文档
-- [Phase 1 报告](./docs/phase1/PHASE1_COMPLETION_REPORT.md) - Export 完成报告
-- [Phase 2 进度](./docs/phase2/PHASE2_PROGRESS.md) - Import 进度追踪
-- [完整文档](./docs/README.md) - 所有文档导航
-
-### 技术文档
-- [ImportAdapter 规范](./docs/phase2/IMPORT_ADAPTER_SPEC.md) - 接口设计
-- [import_agent 工具](./docs/phase2/IMPORT_AGENT_TOOL_GUIDE.md) - MCP 工具
-- [CLI 导入指南](./docs/phase2/CLI_IMPORT_GUIDE.md) - 命令行使用
+MIT License
 
 ---
 
-## 📞 联系方式
-
-**项目状态**: Phase 1+2 完成 ✅  
-**最后更新**: 2026-06-06  
+**最后更新**: 2026-06-07  
 **维护者**: Peng Xiao
-
----
-
-## 🎉 里程碑
-
-- **2026-06-06**: Phase 2 完成 - Import 功能上线 ✅
-- **2026-06-06**: Phase 1 完成 - Export 功能完善 ✅
-- **2026-06-03**: 项目启动
-
----
-
-**⭐ 如果这个项目对你有帮助，请给个 Star！**
