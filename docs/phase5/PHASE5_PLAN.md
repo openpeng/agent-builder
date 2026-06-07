@@ -870,33 +870,45 @@ export class MCPConfigManager {
 
 #### 目标
 
-实现 Skill 系统，让 Agent 能够加载和调用可复用的 Skills。
+实现 Skill 系统，让 Agent 能够加载和调用打包在 Agent 内的 Skills。
 
 #### 子任务
 
-##### 5.8.1: Skill Registry
+##### 5.8.1: Skill Loader (从 Agent 内部加载)
+
 ```typescript
-// src/runtime/skills/registry.ts
-export interface SkillInfo {
-  name: string;
-  path: string;
-  version: string;
-  type: "skill";
+// src/runtime/skills/loader.ts
+export class SkillLoader {
+  async loadSkillsFromAgent(agent: Agent): Promise<Map<string, Agent>> {
+    const skills = new Map<string, Agent>();
+
+    // 遍历 subagents，找到 type: "skill" 的
+    for (const subagentDef of agent.subagents) {
+      if (subagentDef.type !== "skill") {
+        continue;
+      }
+
+      // 加载 Skill 的 agent.json
+      const skillPath = path.resolve(
+        agent.basePath,
+        path.dirname(subagentDef.path),
+        "agent.json"
+      );
+
+      const skillAgent = await this.loadAgent(skillPath);
+
+      // 验证是 Skill 类型
+      if (skillAgent.type !== "skill") {
+        console.warn(`Subagent ${subagentDef.name} declared as skill but type is not "skill"`);
+      }
+
+      skills.set(subagentDef.name, skillAgent);
+    }
+
+    return skills;
+  }
 }
-
-export class SkillRegistry {
-  private skills = new Map<string, SkillInfo>();
-
-  async discover() {
-    // 1. 扫描系统 Skill 目录
-    const systemSkills = await this.scanDirectory(
-      "/usr/local/share/agent-skills"
-    );
-
-    // 2. 扫描用户 Skill 目录
-    const userSkills = await this.scanDirectory(
-      "~/.agent-deploy/skills"
-    );
+```
 
     // 3. 注册所有 Skills
     for (const skill of [...systemSkills, ...userSkills]) {
@@ -1064,27 +1076,164 @@ export class SkillParameterValidator {
 ```
 
 **测试**:
-- [ ] 注册和发现 Skills
+- [ ] 从 Agent 内部加载 Skills
 - [ ] 加载 Skill
 - [ ] 执行 Skill
 - [ ] 参数验证
-- [ ] Skill 作为 Subagent
+- [ ] Skill 作为 Subagent Tool
 - [ ] Skill 组合
+
+---
+
+### Task 5.9: Memory 系统集成 🟡
+
+**优先级**: 高  
+**工作量**: 1 周  
+**负责人**: TBD
+
+#### 目标
+
+实现记忆系统，让 Agent 能够记忆和学习，实现自我提升。
+
+#### 子任务
+
+##### 5.9.1: MemoryManager
+
+```typescript
+// src/runtime/memory/manager.ts
+export class MemoryManager {
+  private basePath: string;
+
+  constructor() {
+    this.basePath = path.join(os.homedir(), ".agent-deploy", "memory");
+  }
+
+  async loadAgentMemory(agentName: string): Promise<Memory> {
+    const memoryPath = path.join(
+      this.basePath,
+      "agents",
+      agentName,
+      "long-term.json"
+    );
+
+    if (!fs.existsSync(memoryPath)) {
+      return this.createEmptyMemory(agentName);
+    }
+
+    return JSON.parse(fs.readFileSync(memoryPath, "utf-8"));
+  }
+
+  async loadProjectMemory(
+    projectPath: string,
+    agentName: string
+  ): Promise<Memory | null> {
+    const projectHash = this.hashProjectPath(projectPath);
+    const memoryPath = path.join(
+      this.basePath,
+      "projects",
+      projectHash,
+      "agents",
+      `${agentName}.json`
+    );
+
+    if (!fs.existsSync(memoryPath)) {
+      return null;
+    }
+
+    return JSON.parse(fs.readFileSync(memoryPath, "utf-8"));
+  }
+
+  async saveAgentMemory(agentName: string, entry: MemoryEntry) {
+    // 实现保存逻辑
+  }
+
+  async saveProjectMemory(
+    projectPath: string,
+    agentName: string,
+    entry: MemoryEntry
+  ) {
+    // 实现保存逻辑
+  }
+}
+```
+
+##### 5.9.2: Memory Tools
+
+```typescript
+// src/runtime/tools/memory-read.ts
+export class MemoryReadTool implements BuiltinTool {
+  name = "memory_read";
+
+  async execute(args: {
+    scope: "agent" | "project" | "all";
+    tags?: string[];
+    types?: MemoryType[];
+    limit?: number;
+  }, context: ExecutionContext): Promise<MemoryEntry[]> {
+    const memoryManager = new MemoryManager();
+    // 实现读取逻辑
+  }
+}
+
+// src/runtime/tools/memory-write.ts
+export class MemoryWriteTool implements BuiltinTool {
+  name = "memory_write";
+
+  async execute(args: {
+    scope: "agent" | "project";
+    type: MemoryType;
+    content: string;
+    tags?: string[];
+    confidence?: number;
+  }, context: ExecutionContext): Promise<{ id: string }> {
+    const memoryManager = new MemoryManager();
+    // 实现写入逻辑
+  }
+}
+```
+
+##### 5.9.3: Memory CLI
+
+```typescript
+// src/cli/memory.ts
+export async function handleMemoryCommand(args: string[]) {
+  const subcommand = args[0]; // list, clear, export, import, stats
+
+  switch (subcommand) {
+    case "list":
+      await listMemories(args);
+      break;
+    case "clear":
+      await clearMemories(args);
+      break;
+    case "export":
+      await exportMemories(args);
+      break;
+    case "import":
+      await importMemories(args);
+      break;
+    case "stats":
+      await showMemoryStats();
+      break;
+  }
+}
+```
+
+**测试**:
+- [ ] 保存和读取 Agent 记忆
+- [ ] 保存和读取项目记忆
+- [ ] 按 tags 过滤
+- [ ] 按置信度过滤
+- [ ] 记忆裁剪
+- [ ] CLI 命令
 
 #### 集成测试
 
 ##### E2E-6: MCP Integration
 ```bash
-# 配置 MCP server (TAPD)
-cat > ~/.agent-deploy/mcp-config.json << 'EOF'
-{
-  "servers": {
-    "tapd": {
-      "command": "npx",
-      "args": ["-y", "@openpeng/mcp-tapd"],
-      "env": {
-        "TAPD_API_KEY": "${TAPD_API_KEY}"
-      }
+# MCP 配置打包在 Agent 内
+cd tapd-task-manager/
+ls mcp/servers.json  # Agent 自带 MCP 配置
     }
   }
 }
@@ -1199,16 +1348,23 @@ agent-deploy run ./file-summarizer --args file_path=/tmp/test.txt
 - ✅ 参数解析
 
 ### M4: MCP + Skill 集成 (Week 6-7)
-- ✅ MCP Client Wrapper
+- ✅ MCP Client Wrapper (从 Agent 内加载配置)
 - ✅ MCP Tool 类型
-- ✅ Skill Registry + Loader
+- ✅ Skill Loader (从 Agent 内加载)
 - ✅ Skill Tool 类型
 - ✅ 参数验证
 - ✅ 集成测试
 
-### M5: 兼容与测试 (Week 8)
+### M5: Memory 系统 (Week 8)
+- ✅ MemoryManager (Agent/Project 两层存储)
+- ✅ Memory Tools (read/write/search/forget)
+- ✅ Memory CLI 命令
+- ✅ 裁剪和清理机制
+- ✅ 集成测试
+
+### M6: 兼容与测试 (Week 9)
 - ✅ v2 → v3 自动转换
-- ✅ E2E 测试套件 (7+ 场景)
+- ✅ E2E 测试套件 (8+ 场景)
 - ✅ 文档更新
 - ✅ 示例验证
 
@@ -1222,12 +1378,13 @@ agent-deploy run ./file-summarizer --args file_path=/tmp/test.txt
 - [ ] Subagent 加载和执行
 - [ ] CLI run 命令可用
 - [ ] v2 兼容层工作
-- [ ] MCP 工具集成
-- [ ] Skill 系统集成
+- [ ] MCP 工具集成 (从 Agent 内加载)
+- [ ] Skill 系统集成 (从 Agent 内加载)
+- [ ] Memory 系统集成 (分层存储 + 4 个工具)
 
 ### 质量标准
 - [ ] 单元测试覆盖率 ≥ 80%
-- [ ] E2E 测试 7+ 场景 (含 MCP + Skill)
+- [ ] E2E 测试 8+ 场景 (含 MCP + Skill + Memory)
 - [ ] TypeScript 编译 0 错误
 - [ ] 所有示例可运行
 
@@ -1298,11 +1455,16 @@ agent-deploy run ./file-summarizer --args file_path=/tmp/test.txt
 2. CLI 集成
 
 ### Week 6-7
-1. MCP 工具集成
-2. Skill 系统集成
+1. MCP 工具集成 (从 Agent 内加载配置)
+2. Skill 系统集成 (从 Agent 内加载 Skills)
 3. 集成测试
 
 ### Week 8
+1. Memory 系统集成
+2. Memory Tools 实现
+3. Memory CLI 命令
+
+### Week 9
 1. v2 兼容层
 2. E2E 测试 (全场景)
 3. 文档完善
