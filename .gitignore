@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+package-lock.json
+.pnpm-debug.log
+*.pyc
+__pycache__/
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+agent-deploy/node/dist/
+agent-deploy/python/dist/
+
+# Test
+coverage/
+.nyc_output/
+.pytest_cache/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+.cache/
+
+# Data
+data/
+*.db
+*.sqlite
+
+# Market specific
+agent-market/data/
+agent-market/src/market/static/
+
+# Agent test files
+test-agents/*/
+downloaded-agents/
+imported-agents/
