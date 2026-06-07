@@ -1,8 +1,8 @@
 # Agent Market 项目状态
 
-**最后更新**: 2026-06-07 03:30
-**当前阶段**: Phase 3 ✅ **完成**（核心功能 + 文档同步）
-**完成度**: Phase 1: 100% ✅ | Phase 2: 100% ✅ | Phase 3: 100% ✅ (核心 + 文档)
+**最后更新**: 2026-06-07 09:30
+**当前阶段**: Phase 4 🚀 **进行中** (Phase 4.1 完成)
+**完成度**: Phase 1: 100% ✅ | Phase 2: 100% ✅ | Phase 3: 100% ✅ | Phase 4: 25% 🚀
 
 ---
 
@@ -95,13 +95,13 @@
 
 ## 📊 当前指标
 
-| 指标 | Phase 1 | Phase 2 | Phase 3 | 总计 |
-|-----|---------|---------|---------|------|
-| 测试通过 | 31/31 ✅ | 31/31 ✅ | 62/62 ✅ | **62/62 ✅** |
-| 编译错误 | 0 ✅ | 0 ✅ | 0 ✅ | **0 ✅** |
-| 新增代码 | ~2000 | ~3200 | ~650 | **~5850** |
-| 文档产出 | 13 份 ✅ | 6 份 ✅ | 6 份 ✅ | **25 份** |
-| 向后兼容 | 100% ✅ | 100% ✅ | 100% ✅ | **100% ✅** |
+| 指标 | Phase 1 | Phase 2 | Phase 3 | Phase 4 | 总计 |
+|-----|---------|---------|---------|---------|------|
+| 测试通过 | 31/31 ✅ | 31/31 ✅ | 62/62 ✅ | 62/62 ✅ | **62/62 ✅** |
+| 编译错误 | 0 ✅ | 0 ✅ | 0 ✅ | 0 ✅ | **0 ✅** |
+| 新增代码 | ~2000 | ~3200 | ~650 | ~430 | **~6280** |
+| 文档产出 | 13 份 ✅ | 6 份 ✅ | 6 份 ✅ | 2 份 ✅ | **27 份** |
+| 向后兼容 | 100% ✅ | 100% ✅ | 100% ✅ | 100% ✅ | **100% ✅** |
 
 **测试细分**:
 - Export 测试 (adapt.test.ts): 22 ✅
@@ -112,7 +112,8 @@
 **文档细分**:
 - Phase 1 文档: 13 份
 - Phase 2 文档: 6 份
-- Phase 3 文档: 6 份（包含用户指南、贡献指南等）
+- Phase 3 文档: 6 份
+- Phase 4 文档: 2 份（规划 + 4.1 完成报告）（包含用户指南、贡献指南等）
 
 ---
 
@@ -148,6 +149,33 @@ Import → Market → Download → Deploy
 - Download from Market
 - Deploy to AI Tools
 - 完整双向闭环
+
+---
+
+## 🚀 Phase 4 进行中 (2026-06-07)
+
+**开始日期**: 2026-06-07  
+**预计完成**: 2026-06-08  
+**完成度**: 25% (1/4 核心任务)
+
+### 已完成 ✅
+
+- [x] **Task 4.1: List & Search Commands** ✅
+  - list 命令 - 列出本地 agents
+  - search 命令 - 搜索 Market agents
+  - info 命令 - 显示详细信息
+  - 友好的错误处理和用户提示
+
+### 进行中 🚀
+
+- [ ] **Task 4.2: Version Management**
+- [ ] **Task 4.3: Enhanced Error Handling**
+- [ ] **Task 4.10: Documentation Updates**
+
+**Phase 4 成就**:
+1. ✅ **Agent 发现** - 列出本地 agents
+2. ✅ **Market 搜索** - 从 CLI 搜索 Market
+3. ✅ **详细信息** - 查看完整 agent 元数据
 
 ---
 
@@ -195,6 +223,18 @@ for dir in ./imported-agents/*; do
 done
 ```
 
+### Agent 发现和搜索 (Phase 4.1)
+```bash
+# 列出本地 agents
+agent-deploy list
+
+# 搜索 Market
+agent-deploy search "code review"
+
+# 查看详细信息
+agent-deploy info code-reviewer
+```
+
 ---
 
 ## 🎉 里程碑
@@ -210,6 +250,8 @@ done
 **2026-06-07**:
 - ✅ Phase 3 完成 (Market Integration)
 - ✅ 文档同步完成
+- ✅ Phase 4 启动
+- ✅ Phase 4.1 完成 (List & Search)
 
 ---
 
@@ -280,14 +322,23 @@ done
 ✅ **Import** - 从 4 平台导入  
 ✅ **Market** - 上传/下载集成  
 ✅ **Deploy** - 自动部署工具  
-✅ **CLI** - 完整命令行工具  
+✅ **CLI** - 完整命令行工具 (6 命令)  
 ✅ **MCP** - 7 个 MCP 工具  
-✅ **Docs** - 25 份完整文档
+✅ **Docs** - 27 份完整文档  
+🚀 **Discovery** - List/Search/Info 命令
+
+### CLI 命令
+1. `import` - 导入 agents
+2. `upload` - 上传到 Market
+3. `deploy` - 部署到 AI 工具
+4. `list` - 列出本地 agents ✨ NEW
+5. `search` - 搜索 Market agents ✨ NEW
+6. `info` - 显示详细信息 ✨ NEW
 
 ### 技术指标
 - ✅ 62/62 测试通过
-- ✅ ~5,850 行代码
-- ✅ 25 份文档
+- ✅ ~6,280 行代码
+- ✅ 27 份文档
 - ✅ 100% 向后兼容
 - ✅ 跨平台支持
 
@@ -298,16 +349,17 @@ done
 4. **自动化** - CLI 支持批量操作
 5. **生态系统** - Market 集成分享
 6. **文档完善** - 完整的使用和贡献指南
+7. **易于发现** - List/Search 提升可发现性 ✨ NEW
 
 ---
 
-**状态**: ✅ **全部核心功能完成，文档完善，生产就绪**  
+**状态**: ✅ **Phase 1-3 完成，Phase 4 进行中**  
 **风险**: 🟢 无  
 **质量**: ⭐⭐⭐⭐⭐ 优秀  
 **生产就绪**: ✅ 是
 
 ---
 
-**Report Generated**: 2026-06-07 03:30  
-**Version**: 6.0  
-**Status**: ✅ Phase 1+2+3 Complete (包含文档同步)
+**Report Generated**: 2026-06-07 09:30  
+**Version**: 7.0  
+**Status**: ✅ Phase 1+2+3 Complete, Phase 4.1 Complete
