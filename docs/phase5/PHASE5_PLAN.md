@@ -3,7 +3,7 @@
 **版本**: 1.0.0  
 **状态**: Planning  
 **开始日期**: 2026-06-07  
-**预计完成**: 2026-07-15 (6周)
+**预计完成**: 2026-07-29 (8周)
 
 ---
 
@@ -688,6 +688,438 @@ function generateWorkerYaml(instructions: string | object): WorkerYaml {
 
 端到端测试完整 Agent 工作流。
 
+---
+
+### Task 5.7: MCP 工具集成 🟡
+
+**优先级**: 高  
+**工作量**: 1 周  
+**负责人**: TBD
+
+#### 目标
+
+实现 MCP (Model Context Protocol) 工具集成，让 Agent 能够调用外部 MCP servers。
+
+#### 子任务
+
+##### 5.7.1: MCP Client Wrapper
+```typescript
+// src/runtime/mcp/client.ts
+export class MCPClient {
+  private connections = new Map<string, MCPServerConnection>();
+
+  async connect(serverName: string): Promise<MCPServerConnection> {
+    // 1. 从配置读取 server 信息
+    const config = this.loadServerConfig(serverName);
+    
+    // 2. 启动 MCP server process
+    const connection = await this.startServer(config);
+    
+    // 3. 建立连接
+    await connection.initialize();
+    
+    this.connections.set(serverName, connection);
+    return connection;
+  }
+
+  async callTool(
+    serverName: string,
+    toolName: string,
+    args: any
+  ): Promise<any> {
+    const connection = this.connections.get(serverName);
+    if (!connection) {
+      throw new Error(`MCP server not connected: ${serverName}`);
+    }
+
+    return await connection.callTool(toolName, args);
+  }
+
+  async disconnect(serverName: string) {
+    const connection = this.connections.get(serverName);
+    if (connection) {
+      await connection.close();
+      this.connections.delete(serverName);
+    }
+  }
+}
+```
+
+##### 5.7.2: MCP Tool 类型
+```typescript
+// src/runtime/tools/mcp-tool.ts
+export class MCPTool implements BuiltinTool {
+  name: string;
+  type = "mcp";
+  server: string;
+  
+  constructor(
+    private mcpClient: MCPClient,
+    private toolDef: MCPToolDefinition
+  ) {
+    this.name = toolDef.name;
+    this.server = toolDef.server;
+  }
+
+  async execute(args: any, context: ExecutionContext): Promise<any> {
+    try {
+      const result = await this.mcpClient.callTool(
+        this.server,
+        this.name,
+        args
+      );
+      return result;
+    } catch (error) {
+      if (error instanceof MCPConnectionError) {
+        throw new ToolError(
+          `MCP server '${this.server}' not available`,
+          "MCP_SERVER_UNAVAILABLE"
+        );
+      }
+      throw error;
+    }
+  }
+}
+```
+
+##### 5.7.3: MCP Loader
+```typescript
+// src/runtime/mcp/loader.ts
+export class MCPLoader {
+  async loadMCPTools(agent: Agent): Promise<Map<string, MCPTool>> {
+    const tools = new Map<string, MCPTool>();
+    
+    if (!agent.mcp?.required_servers) {
+      return tools;
+    }
+
+    for (const serverDef of agent.mcp.required_servers) {
+      // 1. 连接 MCP server
+      const client = new MCPClient();
+      await client.connect(serverDef.name);
+      
+      // 2. 列举 tools
+      const availableTools = await client.listTools(serverDef.name);
+      
+      // 3. 验证所需 tools
+      for (const toolName of serverDef.tools) {
+        const toolDef = availableTools.find(t => t.name === toolName);
+        if (!toolDef) {
+          if (!serverDef.optional) {
+            throw new Error(`Required MCP tool not found: ${toolName}`);
+          }
+          continue;
+        }
+        
+        // 4. 注册到工具系统
+        const mcpTool = new MCPTool(client, toolDef);
+        tools.set(toolName, mcpTool);
+      }
+    }
+    
+    return tools;
+  }
+}
+```
+
+##### 5.7.4: MCP 配置管理
+```typescript
+// src/runtime/mcp/config.ts
+export interface MCPServerConfig {
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+  timeout?: number;
+}
+
+export class MCPConfigManager {
+  private configPath = "~/.agent-deploy/mcp-config.json";
+
+  loadConfig(): Record<string, MCPServerConfig> {
+    // 读取 MCP 配置文件
+  }
+
+  getServerConfig(name: string): MCPServerConfig {
+    const config = this.loadConfig();
+    if (!config[name]) {
+      throw new Error(
+        `MCP server '${name}' not configured. ` +
+        `Please add it to ${this.configPath}`
+      );
+    }
+    return config[name];
+  }
+}
+```
+
+**测试**:
+- [ ] 连接到 MCP server
+- [ ] 列举 MCP tools
+- [ ] 调用 MCP tool
+- [ ] 错误处理 (server 不可用)
+- [ ] 多 server 并发
+- [ ] 配置读取
+
+---
+
+### Task 5.8: Skill 系统集成 🟡
+
+**优先级**: 高  
+**工作量**: 1 周  
+**负责人**: TBD
+
+#### 目标
+
+实现 Skill 系统，让 Agent 能够加载和调用可复用的 Skills。
+
+#### 子任务
+
+##### 5.8.1: Skill Registry
+```typescript
+// src/runtime/skills/registry.ts
+export interface SkillInfo {
+  name: string;
+  path: string;
+  version: string;
+  type: "skill";
+}
+
+export class SkillRegistry {
+  private skills = new Map<string, SkillInfo>();
+
+  async discover() {
+    // 1. 扫描系统 Skill 目录
+    const systemSkills = await this.scanDirectory(
+      "/usr/local/share/agent-skills"
+    );
+
+    // 2. 扫描用户 Skill 目录
+    const userSkills = await this.scanDirectory(
+      "~/.agent-deploy/skills"
+    );
+
+    // 3. 注册所有 Skills
+    for (const skill of [...systemSkills, ...userSkills]) {
+      this.register(skill);
+    }
+  }
+
+  register(skillInfo: SkillInfo) {
+    this.skills.set(skillInfo.name, skillInfo);
+  }
+
+  find(name: string): SkillInfo | null {
+    return this.skills.get(name) || null;
+  }
+
+  list(): SkillInfo[] {
+    return Array.from(this.skills.values());
+  }
+}
+```
+
+##### 5.8.2: Skill Loader
+```typescript
+// src/runtime/skills/loader.ts
+export class SkillLoader {
+  constructor(
+    private registry: SkillRegistry,
+    private agentLoader: SubagentLoader
+  ) {}
+
+  async loadSkill(skillName: string): Promise<Agent> {
+    // 1. 从 registry 查找
+    const skillInfo = this.registry.find(skillName);
+    if (!skillInfo) {
+      throw new Error(`Skill not found: ${skillName}`);
+    }
+
+    // 2. 加载 Skill Agent
+    const skillAgent = await this.agentLoader.load(skillInfo.path);
+
+    // 3. 验证是 Skill 类型
+    if (skillAgent.type !== "skill") {
+      throw new Error(`Not a skill: ${skillName}`);
+    }
+
+    return skillAgent;
+  }
+
+  async executeSkill(
+    skillAgent: Agent,
+    args: Record<string, any>
+  ): Promise<any> {
+    // 执行 Skill 的 pipeline
+    return await skillAgent.run(args);
+  }
+}
+```
+
+##### 5.8.3: Skill Tool 类型
+```typescript
+// src/runtime/tools/skill-tool.ts
+export class SkillTool implements BuiltinTool {
+  name: string;
+  type = "skill";
+  
+  constructor(
+    private skillName: string,
+    private skillLoader: SkillLoader
+  ) {
+    this.name = `skill_${skillName}`;
+  }
+
+  async execute(args: any, context: ExecutionContext): Promise<any> {
+    // 1. 加载 Skill
+    const skillAgent = await this.skillLoader.loadSkill(this.skillName);
+
+    // 2. 验证参数
+    this.validateParameters(args, skillAgent.parameters);
+
+    // 3. 创建 Skill 执行上下文 (隔离)
+    const skillContext = {
+      ...context,
+      initialArgs: args,
+      steps: new Map()  // 隔离的步骤上下文
+    };
+
+    // 4. 执行 Skill pipeline
+    const result = await skillAgent.run(args);
+
+    return result;
+  }
+
+  private validateParameters(
+    args: Record<string, any>,
+    parameters: ParameterSchema
+  ) {
+    const validator = new SkillParameterValidator();
+    const result = validator.validate(args, parameters);
+    if (!result.valid) {
+      throw new Error(
+        `Invalid parameters for skill ${this.skillName}: ` +
+        result.errors.join(", ")
+      );
+    }
+  }
+}
+```
+
+##### 5.8.4: Skill 参数验证
+```typescript
+// src/runtime/skills/validator.ts
+export class SkillParameterValidator {
+  validate(
+    args: Record<string, any>,
+    parameters: ParameterSchema
+  ): ValidationResult {
+    const errors: string[] = [];
+
+    // 1. 检查必填参数
+    for (const [key, schema] of Object.entries(parameters)) {
+      if (schema.required && !(key in args)) {
+        errors.push(`Missing required parameter: ${key}`);
+      }
+    }
+
+    // 2. 检查类型
+    for (const [key, value] of Object.entries(args)) {
+      const schema = parameters[key];
+      if (!schema) {
+        errors.push(`Unknown parameter: ${key}`);
+        continue;
+      }
+
+      if (!this.checkType(value, schema.type)) {
+        errors.push(
+          `Invalid type for ${key}: expected ${schema.type}, got ${typeof value}`
+        );
+      }
+
+      // 3. 检查枚举
+      if (schema.enum && !schema.enum.includes(value)) {
+        errors.push(
+          `Invalid value for ${key}: must be one of ${schema.enum.join(", ")}`
+        );
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  private checkType(value: any, expectedType: string): boolean {
+    switch (expectedType) {
+      case "string": return typeof value === "string";
+      case "number": return typeof value === "number";
+      case "boolean": return typeof value === "boolean";
+      case "array": return Array.isArray(value);
+      case "object": return typeof value === "object" && !Array.isArray(value);
+      default: return true;
+    }
+  }
+}
+```
+
+**测试**:
+- [ ] 注册和发现 Skills
+- [ ] 加载 Skill
+- [ ] 执行 Skill
+- [ ] 参数验证
+- [ ] Skill 作为 Subagent
+- [ ] Skill 组合
+
+#### 集成测试
+
+##### E2E-6: MCP Integration
+```bash
+# 配置 MCP server (TAPD)
+cat > ~/.agent-deploy/mcp-config.json << 'EOF'
+{
+  "servers": {
+    "tapd": {
+      "command": "npx",
+      "args": ["-y", "@openpeng/mcp-tapd"],
+      "env": {
+        "TAPD_API_KEY": "${TAPD_API_KEY}"
+      }
+    }
+  }
+}
+EOF
+
+# 运行使用 MCP 的 Agent
+agent-deploy run ./tapd-task-manager \
+  --args workspace_id=12345 \
+  --args user_input="Create a login page"
+
+# 验证: TAPD story 已创建
+```
+
+##### E2E-7: Skill System
+```bash
+# 安装 Skill
+agent-deploy skill install text-summarizer
+
+# 运行使用 Skill 的 Agent
+agent-deploy run ./content-processor \
+  --args file_path=/data/report.txt
+
+# 验证: Skill 被正确调用
+```
+
+### Task 5.6: 集成测试 🟢
+
+**优先级**: 中  
+**工作量**: 1 周  
+**负责人**: TBD
+
+#### 目标
+
+端到端测试完整 Agent 工作流。
+
 #### 测试场景
 
 ##### E2E-1: 最小 Agent
@@ -766,9 +1198,17 @@ agent-deploy run ./file-summarizer --args file_path=/tmp/test.txt
 - ✅ CLI run 命令
 - ✅ 参数解析
 
-### M4: 兼容与测试 (Week 6)
+### M4: MCP + Skill 集成 (Week 6-7)
+- ✅ MCP Client Wrapper
+- ✅ MCP Tool 类型
+- ✅ Skill Registry + Loader
+- ✅ Skill Tool 类型
+- ✅ 参数验证
+- ✅ 集成测试
+
+### M5: 兼容与测试 (Week 8)
 - ✅ v2 → v3 自动转换
-- ✅ E2E 测试套件
+- ✅ E2E 测试套件 (7+ 场景)
 - ✅ 文档更新
 - ✅ 示例验证
 
@@ -782,10 +1222,12 @@ agent-deploy run ./file-summarizer --args file_path=/tmp/test.txt
 - [ ] Subagent 加载和执行
 - [ ] CLI run 命令可用
 - [ ] v2 兼容层工作
+- [ ] MCP 工具集成
+- [ ] Skill 系统集成
 
 ### 质量标准
 - [ ] 单元测试覆盖率 ≥ 80%
-- [ ] E2E 测试 5+ 场景
+- [ ] E2E 测试 7+ 场景 (含 MCP + Skill)
 - [ ] TypeScript 编译 0 错误
 - [ ] 所有示例可运行
 
@@ -851,11 +1293,19 @@ agent-deploy run ./file-summarizer --args file_path=/tmp/test.txt
 1. 实现 Builtin Tools
 2. 集成测试
 
-### Week 5-6
+### Week 5
 1. Subagent 机制
 2. CLI 集成
-3. E2E 测试
-4. 文档完善
+
+### Week 6-7
+1. MCP 工具集成
+2. Skill 系统集成
+3. 集成测试
+
+### Week 8
+1. v2 兼容层
+2. E2E 测试 (全场景)
+3. 文档完善
 
 ---
 
