@@ -1,0 +1,862 @@
+# Phase 5: Agent Runtime 实现计划
+
+**版本**: 1.0.0  
+**状态**: Planning  
+**开始日期**: 2026-06-07  
+**预计完成**: 2026-07-15 (6周)
+
+---
+
+## 概述
+
+Phase 5 的目标是实现 Agent Protocol v3 的**运行时引擎**，让 Agent 从"静态 markdown 文件"进化为"可执行的 Pipeline 工作流"。
+
+### 当前能力 vs 目标能力
+
+| 能力 | 当前 (Phase 4) | 目标 (Phase 5) |
+|------|---------------|---------------|
+| **Agent 定义** | ✅ agent.json v2 | ✅ agent.json v3 |
+| **指令格式** | ✅ 静态 markdown | ✅ Pipeline (worker.yaml) |
+| **工具调用** | ❌ 无 | ✅ Builtin Tools (llm_chat, read_file, etc.) |
+| **步骤编排** | ❌ 无 | ✅ 顺序/条件执行 |
+| **错误处理** | ❌ 无 | ✅ on_fail 策略 |
+| **模板变量** | ❌ 无 | ✅ {{var}}/{{steps.x}} |
+| **Subagent** | ❌ 无 | ✅ 多子 Agent 组合 |
+| **运行模式** | ✅ Deploy only | ✅ Run + Deploy |
+
+---
+
+## 任务分解
+
+### Task 5.1: Pipeline 引擎核心 🔴
+
+**优先级**: 最高  
+**工作量**: 2 周  
+**负责人**: TBD
+
+#### 目标
+
+实现 worker.yaml 的解析和执行引擎。
+
+#### 子任务
+
+##### 5.1.1: YAML 解析器
+```typescript
+// src/runtime/parser.ts
+export interface WorkerYaml {
+  tools: ToolDefinition[];
+  shared_context?: Record<string, any>;
+  pipeline: PipelineStep[];
+}
+
+export function parseWorkerYaml(yamlPath: string): WorkerYaml;
+export function validateWorkerYaml(yaml: WorkerYaml): ValidationResult;
+```
+
+**实现要点**:
+- 使用 `js-yaml` 解析 YAML
+- 验证必填字段 (tools, pipeline)
+- 验证步骤引用完整性
+- 验证工具声明完整性
+
+**测试**:
+- [ ] 解析有效 YAML
+- [ ] 拒绝无效 YAML
+- [ ] 验证步骤引用
+- [ ] 验证工具引用
+
+##### 5.1.2: 执行上下文
+```typescript
+// src/runtime/context.ts
+export interface ExecutionContext {
+  agent: Agent;
+  initialArgs: Record<string, any>;
+  sharedContext: Record<string, any>;
+  steps: Map<string, StepResult>;
+  env: Record<string, string>;
+  cwd: string;
+}
+
+export interface StepResult {
+  output: any;
+  success: boolean;
+  error?: Error;
+  duration_ms: number;
+}
+```
+
+**实现要点**:
+- 管理步骤执行结果
+- 共享上下文传递
+- 环境变量访问
+- 工作目录管理
+
+##### 5.1.3: Pipeline 执行器
+```typescript
+// src/runtime/pipeline.ts
+export class PipelineEngine {
+  constructor(
+    private toolRegistry: ToolRegistry,
+    private logger: Logger
+  ) {}
+
+  async execute(
+    yaml: WorkerYaml,
+    context: ExecutionContext
+  ): Promise<any> {
+    for (const step of yaml.pipeline) {
+      // 1. 检查条件 (when)
+      if (!this.shouldExecute(step, context)) {
+        continue;
+      }
+
+      // 2. 解析模板变量
+      const resolvedArgs = this.resolveTemplateVars(step.args, context);
+
+      // 3. 执行工具
+      try {
+        const result = await this.executeStep(step, resolvedArgs, context);
+        context.steps.set(step.step, result);
+      } catch (error) {
+        // 4. 错误处理
+        const handled = await this.handleError(step, error, context);
+        if (!handled) {
+          throw error;
+        }
+      }
+    }
+
+    return this.getFinalResult(context);
+  }
+
+  private async executeStep(
+    step: PipelineStep,
+    args: any,
+    context: ExecutionContext
+  ): Promise<StepResult> {
+    const tool = this.toolRegistry.get(step.tool);
+    if (!tool) {
+      throw new Error(`Tool not found: ${step.tool}`);
+    }
+
+    const startTime = Date.now();
+    try {
+      const output = await tool.execute(args, context);
+      return {
+        output,
+        success: true,
+        duration_ms: Date.now() - startTime
+      };
+    } catch (error) {
+      return {
+        output: null,
+        success: false,
+        error: error as Error,
+        duration_ms: Date.now() - startTime
+      };
+    }
+  }
+
+  private shouldExecute(
+    step: PipelineStep,
+    context: ExecutionContext
+  ): boolean {
+    if (!step.when) return true;
+    return this.evaluateCondition(step.when, context);
+  }
+
+  private evaluateCondition(
+    condition: string,
+    context: ExecutionContext
+  ): boolean {
+    // 支持: {{var}} == "value"
+    // 支持: {{steps.x.success}} == true
+    // 支持: {{steps.x.output}} > 0
+  }
+
+  private resolveTemplateVars(
+    template: any,
+    context: ExecutionContext
+  ): any {
+    // 递归替换 {{var}}, {{steps.x.output}}, {{shared_context.key}}
+  }
+
+  private async handleError(
+    step: PipelineStep,
+    error: Error,
+    context: ExecutionContext
+  ): Promise<boolean> {
+    const strategy = step.on_fail || "abort";
+    
+    switch (strategy) {
+      case "abort":
+        return false;  // 不处理，向上抛出
+      case "skip":
+        // 记录跳过，继续
+        context.steps.set(step.step, {
+          output: null,
+          success: false,
+          error,
+          duration_ms: 0
+        });
+        return true;
+      case "continue":
+        // 记录失败，继续
+        context.steps.set(step.step, {
+          output: null,
+          success: false,
+          error,
+          duration_ms: 0
+        });
+        return true;
+      default:
+        // retry(n)
+        const match = strategy.match(/^retry\((\d+)\)$/);
+        if (match) {
+          const retries = parseInt(match[1]);
+          // 实现重试逻辑
+        }
+        return false;
+    }
+  }
+}
+```
+
+**测试**:
+- [ ] 顺序执行多步骤
+- [ ] 条件执行 (when)
+- [ ] 模板变量替换
+- [ ] 错误处理 (abort/skip/continue/retry)
+- [ ] 步骤间数据传递
+
+##### 5.1.4: 模板变量系统
+```typescript
+// src/runtime/template.ts
+export class TemplateResolver {
+  resolve(template: any, context: ExecutionContext): any {
+    if (typeof template === 'string') {
+      return this.resolveString(template, context);
+    } else if (Array.isArray(template)) {
+      return template.map(item => this.resolve(item, context));
+    } else if (typeof template === 'object' && template !== null) {
+      const result: any = {};
+      for (const [key, value] of Object.entries(template)) {
+        result[key] = this.resolve(value, context);
+      }
+      return result;
+    }
+    return template;
+  }
+
+  private resolveString(str: string, context: ExecutionContext): string {
+    // {{var}} → context.initialArgs.var
+    // {{steps.step_name.output}} → context.steps.get('step_name').output
+    // {{shared_context.key}} → context.sharedContext.key
+    // {{env.VAR}} → context.env.VAR
+  }
+}
+```
+
+**测试**:
+- [ ] 替换简单变量
+- [ ] 替换嵌套变量
+- [ ] 替换数组中的变量
+- [ ] 替换对象中的变量
+
+---
+
+### Task 5.2: Builtin Tools 实现 🔴
+
+**优先级**: 最高  
+**工作量**: 2 周  
+**负责人**: TBD
+
+#### 目标
+
+实现 7 个核心 Builtin Tools。
+
+#### 工具清单
+
+##### 5.2.1: read_file
+```typescript
+// src/runtime/tools/read-file.ts
+export class ReadFileTool implements BuiltinTool {
+  name = "read_file";
+  
+  async execute(args: {
+    path: string;
+    encoding?: string;
+    max_size?: number;
+  }, context: ExecutionContext): Promise<string> {
+    // 实现文件读取
+  }
+}
+```
+
+**测试**:
+- [ ] 读取存在的文件
+- [ ] 文件不存在 → 错误
+- [ ] 超过 max_size → 错误
+- [ ] 支持相对路径
+- [ ] 支持绝对路径
+
+##### 5.2.2: write_file
+```typescript
+// src/runtime/tools/write-file.ts
+export class WriteFileTool implements BuiltinTool {
+  name = "write_file";
+  
+  async execute(args: {
+    path: string;
+    content: string;
+    mode?: "overwrite" | "append";
+    create_dirs?: boolean;
+  }, context: ExecutionContext): Promise<{
+    path: string;
+    bytes_written: number;
+  }> {
+    // 实现文件写入
+  }
+}
+```
+
+**测试**:
+- [ ] 写入新文件
+- [ ] 覆盖已存在文件
+- [ ] 追加模式
+- [ ] 自动创建父目录
+- [ ] 权限错误处理
+
+##### 5.2.3: bash
+```typescript
+// src/runtime/tools/bash.ts
+export class BashTool implements BuiltinTool {
+  name = "bash";
+  
+  async execute(args: {
+    command: string;
+    cwd?: string;
+    timeout?: number;
+    env?: Record<string, string>;
+  }, context: ExecutionContext): Promise<{
+    stdout: string;
+    stderr: string;
+    exit_code: number;
+    duration_ms: number;
+  }> {
+    // 实现命令执行
+  }
+}
+```
+
+**测试**:
+- [ ] 执行简单命令
+- [ ] 捕获 stdout/stderr
+- [ ] 超时处理
+- [ ] 自定义环境变量
+- [ ] 非零退出码处理
+
+##### 5.2.4: glob
+```typescript
+// src/runtime/tools/glob.ts
+export class GlobTool implements BuiltinTool {
+  name = "glob";
+  
+  async execute(args: {
+    pattern: string;
+    cwd?: string;
+    max_results?: number;
+    ignore?: string[];
+  }, context: ExecutionContext): Promise<string[]> {
+    // 实现文件匹配
+  }
+}
+```
+
+**测试**:
+- [ ] 简单模式 (*.txt)
+- [ ] 递归模式 (**/*.ts)
+- [ ] 忽略模式
+- [ ] 限制结果数
+
+##### 5.2.5: llm_chat ⭐
+```typescript
+// src/runtime/tools/llm-chat.ts
+export class LLMChatTool implements BuiltinTool {
+  name = "llm_chat";
+  
+  async execute(args: {
+    prompt: string;
+    system_prompt?: string;
+    model?: string;
+    temperature?: number;
+    max_tokens?: number;
+    provider?: "anthropic" | "openai";
+    api_key?: string;
+    api_base?: string;
+  }, context: ExecutionContext): Promise<{
+    content: string;
+    model: string;
+    tokens_used: number;
+    duration_ms: number;
+  }> {
+    // 1. 从 context.agent 获取默认配置
+    // 2. 参数覆盖
+    // 3. 调用 LLM API
+    // 4. 返回结果
+  }
+}
+```
+
+**测试**:
+- [ ] 调用 Claude API
+- [ ] 调用 OpenAI API
+- [ ] 配置继承
+- [ ] 参数覆盖
+- [ ] API 错误处理
+- [ ] 重试逻辑
+
+##### 5.2.6: web_fetch
+```typescript
+// src/runtime/tools/web-fetch.ts
+export class WebFetchTool implements BuiltinTool {
+  name = "web_fetch";
+  
+  async execute(args: {
+    url: string;
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    timeout?: number;
+  }, context: ExecutionContext): Promise<{
+    status: number;
+    headers: Record<string, string>;
+    body: string;
+    url: string;
+  }> {
+    // 实现 HTTP 请求
+  }
+}
+```
+
+**测试**:
+- [ ] GET 请求
+- [ ] POST 请求
+- [ ] 自定义 headers
+- [ ] 超时处理
+- [ ] 重定向处理
+
+##### 5.2.7: web_search
+```typescript
+// src/runtime/tools/web-search.ts
+export class WebSearchTool implements BuiltinTool {
+  name = "web_search";
+  
+  async execute(args: {
+    query: string;
+    engine?: "google" | "bing";
+    max_results?: number;
+  }, context: ExecutionContext): Promise<{
+    results: Array<{
+      title: string;
+      url: string;
+      snippet: string;
+    }>;
+  }> {
+    // 实现搜索
+  }
+}
+```
+
+**测试**:
+- [ ] Google 搜索 (需配置 API Key)
+- [ ] 结果数量限制
+- [ ] API 配额处理
+
+---
+
+### Task 5.3: Subagent 机制 🟡
+
+**优先级**: 高  
+**工作量**: 1 周  
+**负责人**: TBD
+
+#### 目标
+
+实现多子 Agent 组合和加载。
+
+#### 子任务
+
+##### 5.3.1: Subagent 加载器
+```typescript
+// src/runtime/subagent.ts
+export class SubagentLoader {
+  load(agentPath: string): Agent {
+    // 1. 读取 agent.json
+    // 2. 解析 subagents
+    // 3. 加载每个 worker.yaml
+    // 4. 返回 Agent 对象
+  }
+
+  resolveSubagent(name: string, agent: Agent): WorkerYaml {
+    // 根据名称查找子 Agent 的 worker.yaml
+  }
+}
+```
+
+##### 5.3.2: Agent 运行器
+```typescript
+// src/runtime/agent.ts
+export class Agent {
+  identity: AgentIdentity;
+  entry: { main_subagent: string };
+  subagents: Map<string, WorkerYaml>;
+  dependencies: Dependencies;
+
+  async run(initialArgs: Record<string, any>): Promise<any> {
+    // 1. 加载 entry.main_subagent
+    const entryYaml = this.subagents.get(this.entry.main_subagent);
+    
+    // 2. 创建执行上下文
+    const context = this.createContext(initialArgs);
+    
+    // 3. 执行 pipeline
+    const engine = new PipelineEngine(this.toolRegistry, this.logger);
+    const result = await engine.execute(entryYaml, context);
+    
+    return result;
+  }
+
+  private createContext(initialArgs: Record<string, any>): ExecutionContext {
+    return {
+      agent: this,
+      initialArgs,
+      sharedContext: {},
+      steps: new Map(),
+      env: process.env,
+      cwd: process.cwd()
+    };
+  }
+}
+```
+
+**测试**:
+- [ ] 加载单子 Agent
+- [ ] 加载多子 Agent
+- [ ] 入口点验证
+- [ ] 子 Agent 引用验证
+
+---
+
+### Task 5.4: CLI Run 命令 🟡
+
+**优先级**: 高  
+**工作量**: 3 天  
+**负责人**: TBD
+
+#### 目标
+
+实现 `agent-deploy run` 命令。
+
+#### 实现
+
+```typescript
+// src/cli.ts
+async function handleRunCommand(args: string[]) {
+  const parsed = parseArgs({
+    args,
+    options: {
+      args: { type: "string", multiple: true },
+      verbose: { type: "boolean", default: false }
+    }
+  });
+
+  const agentPath = parsed.positionals[0];
+  const runtimeArgs = parseRuntimeArgs(parsed.values.args || []);
+
+  // 1. 加载 Agent
+  const loader = new SubagentLoader();
+  const agent = loader.load(agentPath);
+
+  // 2. 运行 Agent
+  console.log(`🚀 Running agent: ${agent.identity.name}`);
+  const result = await agent.run(runtimeArgs);
+
+  // 3. 输出结果
+  console.log(`✅ Result:`, result);
+}
+
+function parseRuntimeArgs(argsArray: string[]): Record<string, any> {
+  // --args key=value → { key: "value" }
+  // --args key=123 → { key: 123 }
+  // --args flag → { flag: true }
+}
+```
+
+**使用示例**:
+```bash
+agent-deploy run ./file-summarizer \
+  --args file_path=/data/report.txt \
+  --args output_path=/tmp/summary.md \
+  --args timestamp="2026-06-07 10:30"
+```
+
+**测试**:
+- [ ] 运行最小 Agent
+- [ ] 运行完整 Agent
+- [ ] 传递参数
+- [ ] 错误处理
+- [ ] Verbose 模式
+
+---
+
+### Task 5.5: v2 兼容层 🟢
+
+**优先级**: 中  
+**工作量**: 1 周  
+**负责人**: TBD
+
+#### 目标
+
+自动转换 v2 Agent 为 v3 格式运行。
+
+#### 实现
+
+```typescript
+// src/runtime/migrate.ts
+export function migrateV2ToV3(v2: AgentJsonV2): {
+  agentV3: AgentJsonV3;
+  workerYaml: WorkerYaml;
+} {
+  const agentV3: AgentJsonV3 = {
+    schema_version: "3.0",
+    identity: v2.identity,
+    entry: { main_subagent: "worker" },
+    subagents: [
+      {
+        name: "worker",
+        path: "worker.yaml",
+        description: "Main workflow (auto-generated from v2)"
+      }
+    ]
+  };
+
+  const workerYaml: WorkerYaml = generateWorkerYaml(v2.instructions);
+
+  return { agentV3, workerYaml };
+}
+
+function generateWorkerYaml(instructions: string | object): WorkerYaml {
+  const instructionsText = typeof instructions === "string"
+    ? instructions
+    : instructions.content || "";
+
+  return {
+    tools: [
+      { name: "llm_chat", type: "builtin" }
+    ],
+    pipeline: [
+      {
+        step: "process",
+        tool: "llm_chat",
+        args: {
+          system_prompt: instructionsText,
+          prompt: "{{user_input}}"
+        },
+        output: "result"
+      }
+    ]
+  };
+}
+```
+
+**测试**:
+- [ ] 转换简单 v2 Agent
+- [ ] 转换带外部文件的 v2 Agent
+- [ ] 运行转换后的 Agent
+- [ ] 结果一致性验证
+
+---
+
+### Task 5.6: 集成测试 🟢
+
+**优先级**: 中  
+**工作量**: 1 周  
+**负责人**: TBD
+
+#### 目标
+
+端到端测试完整 Agent 工作流。
+
+#### 测试场景
+
+##### E2E-1: 最小 Agent
+```bash
+# 运行 minimal-agent
+agent-deploy run ./examples/minimal-agent --args user_name=Alice
+
+# 预期输出:
+# 🚀 Running agent: minimal-agent
+# ✅ Result: "Hello Alice! ..."
+```
+
+##### E2E-2: 文件摘要 Agent
+```bash
+# 创建测试文件
+echo "Long document..." > /tmp/test.txt
+
+# 运行
+agent-deploy run ./examples/file-summarizer \
+  --args file_path=/tmp/test.txt \
+  --args output_path=/tmp/summary.md
+
+# 验证输出文件
+cat /tmp/summary.md
+```
+
+##### E2E-3: 多子 Agent
+```bash
+# 运行 code-auditor
+agent-deploy run ./examples/multi-subagent
+
+# 验证报告生成
+cat audit-report.md
+```
+
+##### E2E-4: 错误处理
+```bash
+# 文件不存在
+agent-deploy run ./file-summarizer --args file_path=/nonexistent
+
+# 预期: FileNotFoundError, pipeline abort
+```
+
+##### E2E-5: Fallback
+```bash
+# LLM API Key 未配置
+unset ANTHROPIC_API_KEY
+
+agent-deploy run ./file-summarizer --args file_path=/tmp/test.txt
+
+# 预期: LLM 失败, fallback 到截断
+```
+
+---
+
+## 里程碑
+
+### M1: Pipeline 引擎核心 (Week 1-2)
+- ✅ YAML 解析器
+- ✅ 执行上下文
+- ✅ Pipeline 执行器
+- ✅ 模板变量系统
+- ✅ 单元测试 (80%+ 覆盖)
+
+### M2: Builtin Tools (Week 3-4)
+- ✅ read_file / write_file
+- ✅ bash / glob
+- ✅ llm_chat (核心)
+- ✅ web_fetch / web_search
+- ✅ Tool Registry
+- ✅ 单元测试 (每个工具)
+
+### M3: Subagent + CLI (Week 5)
+- ✅ Subagent 加载器
+- ✅ Agent 运行器
+- ✅ CLI run 命令
+- ✅ 参数解析
+
+### M4: 兼容与测试 (Week 6)
+- ✅ v2 → v3 自动转换
+- ✅ E2E 测试套件
+- ✅ 文档更新
+- ✅ 示例验证
+
+---
+
+## 成功标准
+
+### 功能完整性
+- [ ] 所有 7 个 Builtin Tools 实现
+- [ ] Pipeline 引擎支持所有特性
+- [ ] Subagent 加载和执行
+- [ ] CLI run 命令可用
+- [ ] v2 兼容层工作
+
+### 质量标准
+- [ ] 单元测试覆盖率 ≥ 80%
+- [ ] E2E 测试 5+ 场景
+- [ ] TypeScript 编译 0 错误
+- [ ] 所有示例可运行
+
+### 性能标准
+- [ ] 最小 Agent 启动 < 100ms
+- [ ] Pipeline 步骤执行 < 50ms (不含工具)
+- [ ] LLM 调用超时 30s
+- [ ] 文件操作超时 5s
+
+### 文档标准
+- [ ] agent-protocol 完整规范
+- [ ] Runtime API 文档
+- [ ] 迁移指南 (v2 → v3)
+- [ ] 示例教程
+
+---
+
+## 风险与缓解
+
+### 风险 1: llm_chat 实现复杂
+**影响**: 高  
+**概率**: 中
+
+**缓解**:
+- 先实现 Anthropic Claude (优先)
+- 再实现 OpenAI GPT (次要)
+- 使用现有 SDK (不自己实现 API 层)
+
+### 风险 2: 模板变量嵌套深度
+**影响**: 中  
+**概率**: 高
+
+**缓解**:
+- 限制嵌套深度 (如 5 层)
+- 循环检测
+- 清晰错误提示
+
+### 风险 3: 性能问题
+**影响**: 中  
+**概率**: 中
+
+**缓解**:
+- 提前性能测试
+- 优化热路径
+- 缓存机制 (工具注册表等)
+
+---
+
+## 下一步行动
+
+### 立即开始 (本周)
+1. ✅ 完成 agent-protocol 规范 (已完成)
+2. ⏳ 创建 Phase 5 分支
+3. ⏳ 实现 YAML 解析器
+4. ⏳ 实现执行上下文
+
+### Week 2
+1. 实现 Pipeline 执行器
+2. 实现模板变量系统
+3. 单元测试
+
+### Week 3-4
+1. 实现 Builtin Tools
+2. 集成测试
+
+### Week 5-6
+1. Subagent 机制
+2. CLI 集成
+3. E2E 测试
+4. 文档完善
+
+---
+
+**Phase 5 - 让 Agent 真正"活"起来！** 🚀
