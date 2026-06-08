@@ -1,8 +1,8 @@
 # Agent Market 项目状态
 
-**最后更新**: 2026-06-07
-**当前阶段**: Phase 7 ✅ **核心完成** | 协作优化 ✅ **通过**
-**完成度**: Phase 1-6: 100% ✅ | Phase 7: 95% ✅
+**最后更新**: 2026-06-08
+**当前阶段**: Phase 7 ✅ **完成** | P0+P1+P2 ✅ **完成** | 场景演练 ✅ **通过**
+**完成度**: Phase 1-6: 100% ✅ | Phase 7: 100% ✅
 
 ---
 
@@ -240,3 +240,15 @@
 4. 构建: `tsc && cp src/templates/*.json dist/templates/`
 5. 模板变量与 Pipeline 参数命名空间共享，避免冲突
 6. `invoke_parallel` 中 on_fail: continue 可实现部分失败容忍
+
+### 场景演练 (2026-06-08)
+
+**daily-report Agent**: 读取数据 → invoke_parallel(文本总结+消息通知) → 保存报告
+
+演练关键日志:
+- trace_id: b7f20c42 全链路统一传播
+- read_data(1ms) → parallel{ text-summarizer(LM 503→降级) + notification-agent(549ms) }
+- on_fail: continue 生效，部分失败后继续执行 save_report
+- Provider 自动降级日志: "↳ llm_chat: 'anthropic' failed, trying next provider..."
+
+验证通过: invoke_parallel 并行、Provider 自动降级、Trace ID 全链路、on_fail continue、JSON 结构化日志

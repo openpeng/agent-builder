@@ -125,3 +125,18 @@ tsc && cp src/templates/*.json dist/templates/
 
 - Phase 1-7 核心完成 (345+ tests, 100% pass)
 - 详见 `STATUS.md`
+
+### 场景演练经验
+
+**daily-report 模板**:
+```
+子Agent路径: invoke子Agent时子Agent cwd=自身目录 → 文件引用需传相对路径
+invoke_parallel: text-summarizer(100s) 与 notification-agent(1s) 并行 → 总耗100s
+Trace ID: 父Agent生成 → invoke_agent 透传 → 所有子Agent日志共享同一 trace_id
+Provider降级: llm_chat 捕获 5xx → 自动尝试下一个 provider → 日志清晰
+on_fail continue: LLM失败后 pipeline 继续 → save_report 仍正常执行
+
+关键约定:
+- 跨Agent文件引用: `../calling-agent-dir/file.md` (相对于子Agent cwd)
+- Trace ID 透传: invoke_agent 自动从 parent context 复制到 child context
+- LLM 降级链: FALLBACK_ORDER = [anthropic, openai_compatible]
