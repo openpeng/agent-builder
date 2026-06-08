@@ -45,10 +45,44 @@ pip install -r requirements.txt && pytest
 2. **零破坏性变更** — 保持 100% 向后兼容
 3. **Context-based ToolRegistry** — 无全局状态，通过 ExecutionContext 传递
 4. **默认不信任** — 所有 Agent 默认受限，需 `--trusted` 显式授权
-5. **工具错误不抛异常** — 返回 `{ success: false, error }`，让 Pipeline `on_fail` 决策
+5. **工具可返回Error** — 一般工具返回 `{success:false,error}`；invoke_agent 子Agent失败应 throw 让 Pipeline on_fail/retry 接管
 6. **agent context 双路径** — 同时设置 `{ name }` 和 `{ identity: { name } }`
 
 ## 开发注意事项
+
+### Agent 协作模式
+
+```yaml
+# 串行调用（独立步骤）
+- step: step_a
+  invoke: agent-a
+  with: { key: "{{val}}" }
+- step: step_b
+  invoke: agent-b
+  with: { key: "{{steps.step_a.output}}" }
+
+# 并行调用（同时启动，耗时 = max(各自耗时)）
+- step: parallel_work
+  invoke_parallel:
+    - agent: agent-a
+      with: { key: "val1" }
+    - agent: agent-b
+      with: { key: "val2" }
+  on_fail: continue    # 部分失败继续
+  as:                  # 提取结果到 shared_context
+    total: "{{total}}"
+    ok: "{{succeeded}}"
+
+# 调用级重试（应对 LLM 503 瞬时故障）
+- step: call_llm
+  invoke: agent-with-llm
+  with: { input: "{{val}}" }
+  on_fail:
+    retry:
+      max_attempts: 3
+      backoff: "exponential"
+      initial_delay_ms: 2000
+```
 
 ### Context/Env 传递链路
 

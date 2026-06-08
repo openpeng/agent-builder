@@ -1,8 +1,8 @@
 # Agent Market 项目状态
 
 **最后更新**: 2026-06-07
-**当前阶段**: Phase 7 ✅ **核心完成 (安全 & 质量治理)** | 生态验证 ✅ **通过**
-**完成度**: Phase 1-6: 100% ✅ | Phase 7: 85% ✅
+**当前阶段**: Phase 7 ✅ **核心完成** | 协作优化 ✅ **通过**
+**完成度**: Phase 1-6: 100% ✅ | Phase 7: 95% ✅
 
 ---
 
@@ -210,10 +210,33 @@
 | 子Agent 无父信任策略 | 无信任传播机制 | policy.ts + invoke-agent.ts |
 | 模板 JSON 编译后未同步 dist | tsc 不复制 .json | package.json build 脚本 |
 
+### Agent 协作协调 (2026-06-07)
+
+| 机制 | 写法 | 效果 |
+|------|------|------|
+| invoke 语法糖 | `invoke: agent-name` + `with: {}` | 4行→2行，无需记 tool+args |
+| invoke_parallel | `invoke_parallel: [{agent,with}]` | N个Agent并行，耗时=max |
+| 结果映射 `as` | `as: { key: "{{output.field}}" }` | 提取子Agent输出到 shared_context |
+| 错误传播修复 | invoke_agent throw 而非 return error | Pipeline on_fail/retry 生效 |
+| 子Agent自动注册 | agent.json subagents → agent/name 工具 | 不写路径，名称引用 |
+
+### 生态验证发现的 Bug (2026-06-07)
+
+| Bug | 根因 | 修复文件 |
+|-----|------|---------|
+| --trusted 下仍被拦截 | context.agent identity 缺失 | cli.ts + 各工具 |
+| process.env 未透传 | envVars=空 | cli.ts |
+| 嵌套变量失败 | resolveStepPath 浅层 | template.ts |
+| 子Agent无父env | invoke_agent 未传 | invoke-agent.ts |
+| 子Agent无父trust | 无传播机制 | policy.ts |
+| 模板JSON未同步dist | tsc不复制.json | package.json |
+| invoke_agent吞错误 | catch→return error | invoke-agent.ts |
+
 ### 开发约定
 
 1. Context 中 agent 对象同时含 `name` 和 `identity: { name }`
-2. 工具错误返回 `{ success: false, error }` 不抛异常，让 Pipeline on_fail 决策
+2. invoke_agent 失败应 throw 让 Pipeline on_fail 接管
 3. Windows 路径使用正斜杠 `/`
 4. 构建: `tsc && cp src/templates/*.json dist/templates/`
 5. 模板变量与 Pipeline 参数命名空间共享，避免冲突
+6. `invoke_parallel` 中 on_fail: continue 可实现部分失败容忍
