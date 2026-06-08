@@ -140,3 +140,29 @@ on_fail continue: LLM失败后 pipeline 继续 → save_report 仍正常执行
 - 跨Agent文件引用: `../calling-agent-dir/file.md` (相对于子Agent cwd)
 - Trace ID 透传: invoke_agent 自动从 parent context 复制到 child context
 - LLM 降级链: FALLBACK_ORDER = [anthropic, openai_compatible]
+
+### 文档位置
+
+- 快速开始: `docs/QUICK_START.md`
+- Agent开发: `docs/AGENT_DEV_GUIDE.md`
+- 排错手册: `docs/TROUBLESHOOTING.md`
+- Market API: `docs/API.md`
+- 安全模型: `docs/SECURITY.md`
+
+### 常用工作流
+
+**下载Agent并运行**:
+```bash
+agent-deploy use <agent-id> -m http://localhost:8321
+agent-deploy run ./agents/<agent-id> --trusted --args "key=value"
+```
+
+**本地开发Agent**:
+```bash
+agent-deploy init agent-builder -n my-agent
+cd my-agent && vim worker.yaml
+agent-deploy run . --verbose --trusted
+```
+
+**验证环境隔离**: `agent-deploy use` 默认只下载到 `./agents/`，不污染全局配置。
+**清理全局**: `agent-deploy clean`（自动跳过 tapd/flow-mcp 等保护列表）
