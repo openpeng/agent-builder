@@ -42,21 +42,29 @@ pytest           # 运行测试
 ## 项目结构
 
 ```
-agent-market/
-├── agent-deploy/node/    # 部署工具 (TypeScript, 主要开发区域)
+agent-hub/
+├── agent-deploy/node/    # 部署 + 运行时 (TypeScript, 主要开发区域)
 │   ├── src/
-│   │   ├── cli.ts        # CLI 命令入口
-│   │   ├── adapt.ts      # Export 逻辑
-│   │   ├── import.ts     # Import 逻辑
-│   │   ├── market.ts     # Market HTTP 客户端
-│   │   └── runtime/      # Pipeline 引擎
-│   └── tests/            # 测试 (Vitest)
-├── agent-market/         # Market 服务 (Python, FastAPI)
+│   │   ├── cli.ts          # CLI 命令入口 (11 命令)
+│   │   ├── index.ts        # MCP Server (9 工具)
+│   │   ├── adapt.ts        # Export: agent.json → 9 AI 工具
+│   │   ├── import.ts       # Import: AI 工具 → agent.json
+│   │   ├── market.ts       # Market HTTP 客户端
+│   │   └── runtime/        # Runtime Engine
+│   │       ├── agent-executor.ts  # 核心编排 (Phase 8)
+│   │       ├── pipeline.ts        # Pipeline 引擎
+│   │       ├── tools/             # 7 内置工具
+│   │       └── builtin-tools/     # invoke_agent + list_agents
+│   └── tests/              # 测试 (Vitest, 345+)
+├── agent-market/          # Market 服务 (Python, FastAPI)
 │   └── src/market/
-│       ├── server.py     # REST API
-│       └── database.py   # SQLite
-├── agent-protocol/       # Agent 协议规范
-└── docs/                 # 文档
+│       ├── server.py      # REST API
+│       ├── database.py    # SQLite (aiosqlite)
+│       ├── verify.py      # 安全扫描
+│       └── rate_limit.py  # 分层限流
+├── agent-protocol/        # Agent 协议规范 (v3.0)
+│   └── specs/             # 7 规范文档 + 2 JSON Schema
+└── docs/                  # 项目文档
 ```
 
 ---

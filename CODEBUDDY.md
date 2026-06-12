@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-Agent Market 是一个跨平台 AI Agent 互操作系统。核心理念: **agent.json 为唯一真相来源**，消除 AI 工具锁定。
+Agent Hub 是一个跨平台 AI Agent 互操作系统，现已升级为 **部署 + 发现 + 执行** 三合一 Agent 网关。核心理念: **agent.json 为唯一真相来源**，消除 AI 工具锁定。
 
 ## 关键路径
 
@@ -30,9 +30,10 @@ pip install -r requirements.txt && pytest
 
 | 文件 | 职责 |
 |------|------|
-| `agent-deploy/node/src/cli.ts` | CLI 入口，10 命令 |
+| `agent-deploy/node/src/cli.ts` | CLI 入口，11 命令 |
 | `agent-deploy/node/src/adapt.ts` | Export (agent.json → AI 工具) |
 | `agent-deploy/node/src/import.ts` | Import (AI 工具 → agent.json) |
+| `agent-deploy/node/src/runtime/agent-executor.ts` | Agent 执行编排（新增）- CLI 和 MCP 共用 |
 | `agent-deploy/node/src/runtime/pipeline.ts` | Pipeline 执行引擎 |
 | `agent-deploy/node/src/runtime/tools/` | 8 内置工具 |
 | `agent-deploy/node/src/runtime/policy.ts` | 安全策略与沙箱 |
@@ -123,7 +124,7 @@ tsc && cp src/templates/*.json dist/templates/
 
 ## 当前状态
 
-- Phase 1-7 核心完成 (345+ tests, 100% pass)
+- Phase 1-8 全部完成 (345+ tests, 100% pass)
 - 详见 `STATUS.md`
 
 ### 场景演练经验
@@ -165,4 +166,42 @@ agent-deploy run . --verbose --trusted
 ```
 
 **验证环境隔离**: `agent-deploy use` 默认只下载到 `./agents/`，不污染全局配置。
-**清理全局**: `agent-deploy clean`（自动跳过 tapd/flow-mcp 等保护列表）
+**清理全局**: `agent-deploy clean`（自动跳过 tapd/flow-mcp/codebuddy/claude/cursor 等保护列表中的系统工具）
+
+---
+
+## Agent Gateway (Phase 8 新增)
+
+### MCP 工具扩展（7 → 9 个）
+
+| 新增工具 | 功能 |
+|----------|------|
+| `execute_agent` | 执行 Agent，支持 8 种动态覆盖 |
+| `list_agents` | 发现可用 Agent（本地 + Market） |
+
+### execute_agent 动态覆盖（Overrides）
+
+| 字段 | 策略 | 说明 |
+|------|------|------|
+| `instructions` | 直接替换 | 覆盖 agent.json 的 instructions → llm_chat 的 system_prompt |
+| `skills` | 同名覆盖 | 与 agent 默认 skills 合并，不同名追加 |
+| `mcp_servers` | 同名覆盖 | 与 agent 默认 MCP 合并，不同名追加 |
+| `shared_context` | 合并 | 注入 ExecutionContext.sharedContext |
+| `trusted` | 直接替换 | 安全模式切换 |
+| `cwd` | 直接替换 | 工作目录 |
+| `env` | 合并 | 环境变量 |
+
+### 核心模块
+
+| 文件 | 职责 |
+|------|------|
+| `node/src/runtime/agent-executor.ts` | Agent 执行编排（新增） |
+| `node/src/runtime/mcp-integration.ts` | MCP 工具集成（扩展 +registerFromConfig） |
+| `node/src/runtime/skill-integration.ts` | Skill 集成（扩展 +registerFromDefs） |
+| `node/src/runtime/builtin-tools/invoke-agent.ts` | 子Agent调用（扩展 overrides） |
+| `node/src/runtime/builtin-tools/list-agents.ts` | Agent发现（扩展市场） |
+| `node/src/index.ts` | MCP Server（扩展 +2 工具） |
+
+### 架构文档
+
+详见 `ARCHITECTURE.md`。

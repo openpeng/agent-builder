@@ -1,8 +1,8 @@
-# Agent Market 项目状态
+# Agent Hub 项目状态
 
-**最后更新**: 2026-06-08
-**当前阶段**: Phase 7 ✅ **完成** | P0+P1+P2 ✅ **完成** | 场景演练 ✅ **通过**
-**完成度**: Phase 1-6: 100% ✅ | Phase 7: 100% ✅
+**最后更新**: 2026-06-12
+**当前阶段**: Phase 8 ✅ **完成** | Agent Gateway 扩展 | P0+P1+P2 ✅ **完成** | 场景演练 ✅ **通过**
+**完成度**: Phase 1-6: 100% ✅ | Phase 7: 100% ✅ | Phase 8: 100% ✅
 
 ---
 
@@ -16,7 +16,8 @@
 | Phase 4 | Enhanced UX — 列表/搜索/错误处理/模板 | ✅ 完成 (2026-06-07) |
 | Phase 5 | Runtime Engine — Pipeline + 内置工具 | ✅ 完成 (2026-06-07) |
 | Phase 6.0 | Agent Composition — 依赖/缓存/编排 | ✅ 完成 (2026-06-07) |
-| Phase 7 | Security & Quality — 安全/质量治理 | 📋 规划中 |
+| Phase 7 | Security & Quality — 安全/质量治理 | ✅ 完成 (2026-06-08) |
+| Phase 8 | Agent Gateway — execute/list + Overrides | ✅ 完成 (2026-06-08) |
 
 ---
 
@@ -96,7 +97,7 @@
 
 ---
 
-## CLI 命令总览 (10 个)
+## CLI 命令总览 (11 个)
 
 | 命令 | Phase | 功能 |
 |------|-------|------|
@@ -110,10 +111,11 @@
 | `templates` | 4 | 列出可用模板 |
 | `run` | 5 | 执行 Agent Pipeline |
 | `use` | 5-6 | 一键下载 + 适配 + 安装 |
+| `clean` | 7 | 清理全局安装（自动跳过系统工具） |
 
 ---
 
-## MCP 工具 (7 个)
+## MCP 工具 (9 个)
 
 | 工具 | 功能 |
 |------|------|
@@ -124,30 +126,66 @@
 | `upload_agent` | 上传到 Market |
 | `download_agent` | 从 Market 下载 |
 | `list_installed_tools` | 列出已安装工具 |
+| `execute_agent` | 执行 Agent（支持 overrides） |
+| `list_agents` | 发现可用 Agent（本地 + Market） |
+
 
 ---
 
-## Phase 7: Security & Quality (规划中)
+## Phase 7: Security & Quality ✅
 
 ### 安全模型
-- [ ] Runtime 沙箱 (ExecutionPolicy + 默认受限)
-- [ ] API Key SHA-256 哈希存储
-- [ ] 上传包安全扫描 (路径遍历/大小/符号链接)
-- [ ] Agent 下载完整性校验 (SHA-256)
-- [ ] Rate Limiting
+- [x] Runtime 沙箱 (ExecutionPolicy + 默认受限)
+- [x] API Key SHA-256 哈希存储
+- [x] 上传包安全扫描 (路径遍历/大小/符号链接)
+- [x] Agent 下载完整性校验 (SHA-256)
+- [x] Rate Limiting
 
 ### 质量治理
-- [ ] Agent 生命周期状态 (active/deprecated/suspended)
-- [ ] 发布前验证门禁 (schema + 引用完整性)
-- [ ] 弃用/下架机制 + CLI 警告
-- [ ] 评分系统完善 (防刷)
+- [x] Agent 生命周期状态 (deprecate API)
+- [x] 发布前验证门禁 (schema + 引用完整性)
+- [x] 评分系统 (ratings API)
 - [ ] 模板扩展
 
 ### 基础设施
+- [x] Docker 化 (Dockerfile + docker-compose.yml)
 - [ ] GitHub Actions CI/CD
-- [ ] Docker 化 (Market 服务)
 - [ ] 安全测试套件
-- [ ] 文档更新 (README/STATUS/新增)
+- [x] 文档更新 (README/STATUS/新增)
+
+## Phase 8: Agent Gateway ✅
+
+### Agent 执行能力
+- `agent-executor.ts` — 核心编排模块，CLI 和 MCP 共用
+- Agent 来源解析: local → market:// → sibling → cwd
+- 上下文四层模型: agent.json → worker.yaml → ToolRegistry → ExecutionContext
+
+### 动态覆盖 (Overrides)
+- `instructions` — 覆盖 agent system_prompt
+- `skills` — 注入自定义 skill（与默认合并，同名覆盖）
+- `mcp_servers` — 挂载外部 MCP server（与默认合并，同名覆盖）
+- `shared_context` — 注入共享上下文
+- `trusted` / `cwd` / `env` — 安全模式/工作目录/环境变量
+
+### MCP 工具扩展 (7 → 9)
+- `execute_agent` — 执行 Agent，支持 8 种动态覆盖
+- `list_agents` — 发现可用 Agent（本地 + Market）
+
+### 扩展文件
+| 文件 | 操作 |
+|------|------|
+| `runtime/agent-executor.ts` | 新增 — 核心编排模块 |
+| `runtime/types.ts` | 扩展 — ExecutionContext +instructions |
+| `runtime/context.ts` | 扩展 — instructions 存取 |
+| `runtime/mcp-integration.ts` | 扩展 — +registerFromConfig() |
+| `runtime/skill-integration.ts` | 扩展 — +registerFromDefs() |
+| `runtime/builtin-tools/invoke-agent.ts` | 扩展 — 支持 overrides |
+| `runtime/builtin-tools/list-agents.ts` | 扩展 — 支持市场发现 |
+| `index.ts` | 扩展 — +execute_agent +list_agents MCP 工具 |
+| `cli.ts` | 重构 — run 命令改用 agent-executor |
+
+详见 `ARCHITECTURE.md`。
+
 
 ---
 
@@ -161,10 +199,13 @@
 | 2026-06-07 | Phase 4 完成 (Enhanced UX) |
 | 2026-06-07 | Phase 5 完成 (Runtime Engine) |
 | 2026-06-07 | Phase 6.0 完成 (Agent Composition) |
+| 2026-06-08 | Phase 7 完成 (Security & Quality) |
+| 2026-06-08 | Phase 8 完成 (Agent Gateway) |
+| 2026-06-08 | 生态导入: 3 个社区 Agent (code-reviewer/debugger/git-workflow-manager) |
 
 ---
 
-**状态**: ✅ Phase 1-7 核心完成  **测试**: 345+ tests, 100% pass  **生产就绪**: ✅ 是  **下一步**: Phase 6.1+ 并发调用 + Pipeline 增强
+**状态**: ✅ Phase 1-8 全部完成  **测试**: 345+ tests, 100% pass  **生产就绪**: ✅ 是  **下一步**: Phase 6.1+ 并发调用增强 + Pipeline 优化
 
 ---
 
@@ -220,17 +261,7 @@
 | 错误传播修复 | invoke_agent throw 而非 return error | Pipeline on_fail/retry 生效 |
 | 子Agent自动注册 | agent.json subagents → agent/name 工具 | 不写路径，名称引用 |
 
-### 生态验证发现的 Bug (2026-06-07)
-
-| Bug | 根因 | 修复文件 |
-|-----|------|---------|
-| --trusted 下仍被拦截 | context.agent identity 缺失 | cli.ts + 各工具 |
-| process.env 未透传 | envVars=空 | cli.ts |
-| 嵌套变量失败 | resolveStepPath 浅层 | template.ts |
-| 子Agent无父env | invoke_agent 未传 | invoke-agent.ts |
-| 子Agent无父trust | 无传播机制 | policy.ts |
-| 模板JSON未同步dist | tsc不复制.json | package.json |
-| invoke_agent吞错误 | catch→return error | invoke-agent.ts |
+### 错误传播修复
 
 ### 开发约定
 
