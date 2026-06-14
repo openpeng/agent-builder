@@ -66,7 +66,7 @@ export interface HealthStatus {
   uptime: number;
 }
 
-function getHeaders(): Record<string, string> {
+export function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
   const apiKey = localStorage.getItem('market_api_key');
   if (apiKey) {

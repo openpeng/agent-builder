@@ -28,6 +28,8 @@ import {
   revokeApiKey,
 } from '../services/marketApi';
 import { mapMarketAgentToConfig } from '../utils/marketMapper';
+import { getHeaders } from '../services/marketApi';
+import { extractAgentJsonFromTarGz } from '../utils/tarGzParser';
 import { useAgentStore } from '../store/useAgentStore';
 import type {
   MarketAgentListItem,
@@ -171,11 +173,32 @@ export default function MarketPage() {
   };
 
   // ---- Import agent to builder ----
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!selectedAgent) return;
-    const config = mapMarketAgentToConfig(selectedAgent);
+
+    let detail = { ...selectedAgent };
+
+    // 如果 json_content 为空，尝试通过下载包来获取完整的 agent.json
+    if (!detail.json_content || detail.json_content === '{}') {
+      try {
+        const marketUrl = import.meta.env.VITE_MARKET_URL || 'http://localhost:8321';
+        const downloadUrl = `${marketUrl}/api/v1/agents/${encodeURIComponent(detail.id)}/download`;
+        const resp = await fetch(downloadUrl, { headers: getHeaders() });
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const agentJson = await extractAgentJsonFromTarGz(blob);
+          if (agentJson) {
+            detail = { ...detail, json_content: JSON.stringify(agentJson) };
+          }
+        }
+      } catch {
+        // 下载失败则使用已有数据
+      }
+    }
+
+    const config = mapMarketAgentToConfig(detail);
     importFromMarket(config);
-    showToast(`已导入「${selectedAgent.display_name}」，前往编辑`, 'success');
+    showToast(`已导入「${detail.display_name}」，前往编辑`, 'success');
     setTimeout(() => navigate('/intro'), 800);
   };
 
