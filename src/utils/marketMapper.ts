@@ -84,7 +84,7 @@ export function mapMarketAgentToConfig(detail: MarketAgentDetail): Partial<Agent
           env: server.env || {},
         },
         permissions: [],
-        isConnected: false,
+        isConnected: true,
       });
     });
   }
