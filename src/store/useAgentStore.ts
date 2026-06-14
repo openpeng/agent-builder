@@ -158,6 +158,8 @@ export const useAgentStore = create<AgentStore>()(
             stepCompleted: {
               ...state.stepCompleted,
               intro: !!(mergedAgent.name && mergedAgent.description.summary),
+              skills: mergedAgent.skills.length > 0,
+              'mcp-tools': mergedAgent.mcpTools.length > 0,
             },
           };
         }),

@@ -37,13 +37,17 @@ export function mapMarketAgentToConfig(detail: MarketAgentDetail): Partial<Agent
   }
 
   const mappedCategory = CATEGORY_MAP[detail.category] || '办公效率';
-  const instructions = jsonContent?.instructions || '';
-  const summary = detail.description?.split('\n')[0] || detail.description || '';
-  const detailText = instructions ? instructions.substring(0, 500) : detail.description || '';
 
+  // 兼容多种 Agent JSON 结构
+  const identity = jsonContent?.identity || {};
+  const summary = identity.description || detail.description?.split('\n')[0] || detail.description || '';
+  const detailText = identity.description || detail.description || '';
+
+  // 解析 Skills — 兼容 skills 数组和 subagents 结构
   const skills: SkillRef[] = [];
-  if (jsonContent?.skills && Array.isArray(jsonContent.skills)) {
-    jsonContent.skills.forEach((skill: any, index: number) => {
+  const rawSkills = jsonContent?.skills || [];
+  if (Array.isArray(rawSkills)) {
+    rawSkills.forEach((skill: any, index: number) => {
       skills.push({
         skillId: skill.name || skill.id || `skill-${index}`,
         name: skill.display_name || skill.name || `Skill ${index + 1}`,
@@ -58,16 +62,27 @@ export function mapMarketAgentToConfig(detail: MarketAgentDetail): Partial<Agent
     });
   }
 
+  // 解析 MCP Tools — 兼容 mcp_servers、mcp.required_servers、mcpServers 等多种字段名
   const mcpTools: McpToolRef[] = [];
-  if (jsonContent?.mcp?.required_servers && Array.isArray(jsonContent.mcp.required_servers)) {
-    jsonContent.mcp.required_servers.forEach((server: any) => {
+  const rawMcpServers =
+    jsonContent?.mcp_servers ||
+    jsonContent?.mcp?.required_servers ||
+    jsonContent?.mcpServers ||
+    [];
+  if (Array.isArray(rawMcpServers)) {
+    rawMcpServers.forEach((server: any) => {
+      const serverName = server.name || server.package || `mcp-${Date.now()}`;
       mcpTools.push({
-        toolId: server.name || server.package || `mcp-${Date.now()}`,
-        name: server.name || server.description || 'MCP Tool',
-        description: server.description || '',
+        toolId: serverName,
+        name: serverName,
+        description: server.description || `MCP 服务器: ${serverName}`,
         icon: '🔌',
         category: '第三方API',
-        config: {},
+        config: {
+          command: server.command || '',
+          args: server.args || [],
+          env: server.env || {},
+        },
         permissions: [],
         isConnected: false,
       });
