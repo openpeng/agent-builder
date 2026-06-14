@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Download, Sparkles, Edit3 } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useAgentStore } from '../store/useAgentStore';
 import './QuickStart.css';
 
@@ -37,7 +37,7 @@ export default function QuickStart() {
           <div className="quickstart-card-title">从市场导入</div>
           <div className="quickstart-card-desc">搜索市场中的已有 Agent，导入其配置并在此基础上修改</div>
           <div className="quickstart-card-action">
-            开始 <Download size={14} />
+            开始 <ChevronRight size={14} />
           </div>
         </div>
 
@@ -48,7 +48,7 @@ export default function QuickStart() {
           <div className="quickstart-card-title">AI 智能填写</div>
           <div className="quickstart-card-desc">描述你想要的 Agent，AI 自动生成完整配置</div>
           <div className="quickstart-card-action">
-            开始 <Sparkles size={14} />
+            开始 <ChevronRight size={14} />
           </div>
         </div>
 
@@ -58,7 +58,7 @@ export default function QuickStart() {
           <div className="quickstart-card-title">手动创建</div>
           <div className="quickstart-card-desc">从零开始手动填写所有配置项，完全自定义</div>
           <div className="quickstart-card-action">
-            开始 <Edit3 size={14} />
+            开始 <ChevronRight size={14} />
           </div>
         </div>
       </div>

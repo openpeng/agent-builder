@@ -333,12 +333,6 @@ export default function MarketPage() {
             {marketStatus ? `在线 · ${marketStatus.agents_count} 个 Agent` : '离线'}
           </span>
         </div>
-        <div className="market-page-header-right">
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/quick-start')}>
-            <ChevronLeft size={14} />
-            返回构建器
-          </button>
-        </div>
       </div>
 
       {/* Tabs */}
@@ -446,7 +440,7 @@ export default function MarketPage() {
                       <div className="market-agent-card-bottom">
                         <span className="market-agent-card-category">{agent.category}</span>
                         <span className="market-agent-card-stars">
-                          <Star size={12} /> {agent.rating.toFixed(1)}
+                          <Star size={12} /> {agent.rating > 0 ? agent.rating.toFixed(1) : '--'}
                         </span>
                         <span className="market-agent-card-downloads">
                           <Download size={12} /> {agent.download_count}
@@ -526,7 +520,7 @@ export default function MarketPage() {
                     </div>
                     <div className="market-detail-info-row">
                       <span className="label">评分</span>
-                      <span><Star size={12} /> {selectedAgent.rating.toFixed(1)}</span>
+                      <span><Star size={12} /> {selectedAgent.rating > 0 ? selectedAgent.rating.toFixed(1) : '--'}</span>
                     </div>
                     <div className="market-detail-info-row">
                       <span className="label">下载</span>
