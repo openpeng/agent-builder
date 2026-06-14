@@ -35,7 +35,7 @@ function App() {
       <StepSync />
       <BuilderLayout>
         <Routes>
-          <Route path="/" element={<Navigate to="/quick-start" replace />} />
+          <Route path="/" element={<Navigate to="/market" replace />} />
           <Route path="/quick-start" element={<QuickStart />} />
           <Route path="/intro" element={<AgentIntro />} />
           <Route path="/skills" element={<SkillSelector />} />
