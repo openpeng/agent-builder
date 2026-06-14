@@ -7,10 +7,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
+node_modules/
 node_modules
-dist
+
+# Build outputs
+dist/
 dist-ssr
+build/
 *.local
+
+# Data
+data/
+downloaded-agents/
 
 # Editor directories and files
 .vscode/*
@@ -22,7 +31,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+Thumbs.db
 
 # EdgeOne Pages deployment files (keep in repo)
 !dist/_redirects
 !dist/404.html
+
+# Workbuddy
+.workbuddy/
+.notification.log
+
+# Patches
+*.patch
+
+# Embedded git repos (added as submodules or separate pushes)
+agent-builder/
+agent-market/
