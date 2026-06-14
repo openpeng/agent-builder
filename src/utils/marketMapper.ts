@@ -2,6 +2,7 @@
 
 import type { AgentConfig, SkillRef, McpToolRef } from '../types';
 import type { MarketAgentDetail } from '../services/marketApi';
+import { mockMcpTools } from '../data/mockMcpTools';
 
 const CATEGORY_MAP: Record<string, string> = {
   general: '办公效率',
@@ -72,18 +73,35 @@ export function mapMarketAgentToConfig(detail: MarketAgentDetail): Partial<Agent
   if (Array.isArray(rawMcpServers)) {
     rawMcpServers.forEach((server: any) => {
       const serverName = server.name || server.package || `mcp-${Date.now()}`;
-      mcpTools.push({
-        toolId: serverName,
-        name: serverName,
-        description: server.description || `MCP 服务器: ${serverName}`,
-        icon: '🔌',
-        category: '第三方API',
-        config: {
+
+      // 尝试从 mockMcpTools 中查找匹配的工具，获取完整数据
+      const matchedTool = mockMcpTools.find(
+        (t) => t.id === serverName || t.id === server.package
+      );
+
+      // 构建 config：优先使用 mockMcpTools 的 configFields 默认值
+      let config: Record<string, any> = {};
+      if (matchedTool) {
+        matchedTool.configFields.forEach((f) => {
+          config[f.key] = f.default;
+        });
+      } else {
+        // 回退：使用原始 server 的 command/args/env
+        config = {
           command: server.command || '',
           args: server.args || [],
           env: server.env || {},
-        },
-        permissions: [],
+        };
+      }
+
+      mcpTools.push({
+        toolId: matchedTool?.id || serverName,
+        name: matchedTool?.name || serverName,
+        description: matchedTool?.description || server.description || `MCP 服务器: ${serverName}`,
+        icon: matchedTool?.icon || '🔌',
+        category: matchedTool?.category || '第三方API',
+        config,
+        permissions: matchedTool?.permissions || [],
         isConnected: true,
       });
     });
