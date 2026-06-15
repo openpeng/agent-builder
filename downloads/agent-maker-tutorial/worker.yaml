@@ -1,0 +1,64 @@
+name: worker
+version: "2.0.0"
+description: "Agent 制作向导 - 引导用户创建并发布 Agent 包"
+
+tools:
+  - name: read_file
+    type: builtin
+
+  - name: write_file
+    type: builtin
+
+  - name: llm_chat
+    type: builtin
+
+  - name: bash
+    type: builtin
+
+pipeline:
+  # Step 1: 读取模板
+  - step: read_template
+    tool: read_file
+    args:
+      path: "{{shared_context.package_dir}}/templates/minimal-agent.json"
+    output: template_content
+    on_fail: fail
+
+  # Step 2: 用 LLM 尝试生成（无 Key 时自动跳过）
+  - step: generate_config
+    tool: llm_chat
+    args:
+      prompt: "根据以下需求生成一个 agent.json 配置文件（只返回 JSON）：\n{{user_requirements}}\n参考模板：{{template_content}}"
+      system_prompt: "你是一个 Agent 配置生成专家。只输出纯 JSON。"
+    output: generated_json
+    on_fail: continue
+
+  # Step 3: 创建 output 目录并写入 agent.json（使用模板）
+  - step: prepare_output
+    tool: bash
+    args:
+      command: "mkdir -p '{{shared_context.package_dir}}/output' && cp '{{shared_context.package_dir}}/templates/minimal-agent.json' '{{shared_context.package_dir}}/output/agent.json' && echo 'Template prepared'"
+      cwd: "{{shared_context.package_dir}}"
+      timeout: 10
+    output: prepare_result
+    on_fail: fail
+
+  # Step 4: 打包
+  - step: package
+    tool: bash
+    args:
+      command: "cd '{{shared_context.package_dir}}/output' && tar -czf my-agent.tar.gz agent.json && echo 'Packaged: my-agent.tar.gz' && ls -la my-agent.tar.gz"
+      timeout: 15
+    output: package_result
+    on_fail: fail
+
+permissions:
+  filesystem:
+    read: ["**/*.json", "**/*.yaml", "**/*.md"]
+    write: ["output/**", "**/output/**"]
+  subprocess:
+    max_concurrent: 1
+    allowed_commands: ["python3", "cp", "mkdir", "tar", "echo", "ls", "cat", "cd"]
+  resources:
+    memory_limit: "64MB"
+    timeout: 30

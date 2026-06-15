@@ -1,37 +1,67 @@
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.pnpm-debug.log
 lerna-debug.log*
 
 # Dependencies
 node_modules/
-node_modules
 
 # Build outputs
 dist/
 dist-ssr
 build/
 *.local
+agent-deploy/node/dist/
+agent-deploy/python/dist/
 
 # Data
 data/
+*.db
+*.sqlite
 downloaded-agents/
+imported-agents/
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
+*~
 Thumbs.db
+
+# Python
+*.pyc
+__pycache__/
+.Python
+*.egg-info/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test
+coverage/
+.nyc_output/
+.pytest_cache/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+.cache/
 
 # EdgeOne Pages deployment files (keep in repo)
 !dist/_redirects
@@ -47,3 +77,10 @@ Thumbs.db
 # Embedded git repos (added as submodules or separate pushes)
 agent-builder/
 agent-market/
+
+# Market specific
+agent-market/data/
+agent-market/src/market/static/
+
+# Agent test files
+test-agents/*/

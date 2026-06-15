@@ -1,0 +1,23 @@
+---
+name: notification-agent
+version: 1.0.0
+description: 通过 Bark 服务发送消息通知的智能助手
+---
+
+<!-- codebuddy:skill name="notification-agent" -->
+
+# 消息通知 Agent
+
+通过 Bark 服务发送消息通知的智能助手
+
+## Workflows
+
+This agent contains 1 sub-workflow(s):
+
+- **worker** (`worker.yaml`): 消息通知主工作流
+
+Entry workflow: **worker**
+
+## Usage
+
+This agent is based on PilotDeck workflow orchestration. See individual `.yaml` files for detailed configuration.
