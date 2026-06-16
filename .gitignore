@@ -16,8 +16,6 @@ dist/
 dist-ssr
 build/
 *.local
-agent-deploy/node/dist/
-agent-deploy/python/dist/
 
 # Data
 data/
@@ -73,14 +71,3 @@ temp/
 
 # Patches
 *.patch
-
-# Embedded git repos (added as submodules or separate pushes)
-agent-builder/
-agent-market/
-
-# Market specific
-agent-market/data/
-agent-market/src/market/static/
-
-# Agent test files
-test-agents/*/
