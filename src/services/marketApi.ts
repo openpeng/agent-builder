@@ -218,3 +218,177 @@ export async function checkMarketHealth(marketUrl?: string): Promise<HealthStatu
     return null;
   }
 }
+
+// ============================================================
+//  Skills API
+// ============================================================
+
+export interface MarketSkillItem {
+  id: string;
+  original_name: string;
+  display_name: string;
+  description: string;
+  category: string;
+  agent_count: number;
+}
+
+export interface SkillListResult {
+  total: number;
+  page: number;
+  page_size: number;
+  skills: MarketSkillItem[];
+}
+
+export interface SkillDetail {
+  id: string;
+  original_name: string;
+  display_name: string;
+  description: string;
+  version: string;
+  category: string;
+  agents: Array<{ id: string; name: string; version: string }>;
+}
+
+export interface RegisterSkillResult {
+  ok: boolean;
+  id: string;
+}
+
+export async function listMarketSkills(
+  params: { q?: string; category?: string; page?: number; page_size?: number } = {},
+  marketUrl?: string
+): Promise<SkillListResult> {
+  const baseUrl = marketUrl || DEFAULT_MARKET_URL;
+  const searchParams = new URLSearchParams();
+  if (params.q) searchParams.set('q', params.q);
+  if (params.category) searchParams.set('category', params.category);
+  if (params.page) searchParams.set('page', String(params.page));
+  if (params.page_size) searchParams.set('page_size', String(params.page_size));
+
+  const res = await fetch(`${baseUrl}/api/v1/skills?${searchParams}`, { headers: getHeaders() });
+  if (!res.ok) throw new Error(`Skills API错误: ${res.status}`);
+  return res.json();
+}
+
+export async function getMarketSkillDetail(
+  skillId: string,
+  marketUrl?: string
+): Promise<SkillDetail> {
+  const baseUrl = marketUrl || DEFAULT_MARKET_URL;
+  const res = await fetch(`${baseUrl}/api/v1/skills/${encodeURIComponent(skillId)}`, {
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error(`Skill详情错误: ${res.status}`);
+  return res.json();
+}
+
+export async function registerSkill(
+  data: {
+    id: string;
+    original_name: string;
+    display_name: string;
+    description: string;
+    version: string;
+    category: string;
+  },
+  marketUrl?: string
+): Promise<RegisterSkillResult> {
+  const baseUrl = marketUrl || DEFAULT_MARKET_URL;
+  const res = await fetch(`${baseUrl}/api/v1/skills`, {
+    method: 'POST',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `注册Skill失败: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ============================================================
+//  MCP Servers API
+// ============================================================
+
+export interface MarketMcpServerItem {
+  id: string;
+  original_name: string;
+  description: string;
+  command: string;
+  agent_count: number;
+}
+
+export interface McpServerListResult {
+  total: number;
+  page: number;
+  page_size: number;
+  servers: MarketMcpServerItem[];
+}
+
+export interface McpServerDetail {
+  id: string;
+  original_name: string;
+  description: string;
+  command: string;
+  args: string[];
+  required_env: string[];
+  agents: Array<{ id: string; name: string; version: string }>;
+}
+
+export interface RegisterMcpServerResult {
+  ok: boolean;
+  id: string;
+}
+
+export async function listMarketMcpServers(
+  params: { q?: string; page?: number; page_size?: number } = {},
+  marketUrl?: string
+): Promise<McpServerListResult> {
+  const baseUrl = marketUrl || DEFAULT_MARKET_URL;
+  const searchParams = new URLSearchParams();
+  if (params.q) searchParams.set('q', params.q);
+  if (params.page) searchParams.set('page', String(params.page));
+  if (params.page_size) searchParams.set('page_size', String(params.page_size));
+
+  const res = await fetch(`${baseUrl}/api/v1/mcp-servers?${searchParams}`, {
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error(`MCP Servers API错误: ${res.status}`);
+  return res.json();
+}
+
+export async function getMarketMcpServerDetail(
+  serverId: string,
+  marketUrl?: string
+): Promise<McpServerDetail> {
+  const baseUrl = marketUrl || DEFAULT_MARKET_URL;
+  const res = await fetch(`${baseUrl}/api/v1/mcp-servers/${encodeURIComponent(serverId)}`, {
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error(`MCP Server详情错误: ${res.status}`);
+  return res.json();
+}
+
+export async function registerMcpServer(
+  data: {
+    id: string;
+    original_name: string;
+    description: string;
+    command: string;
+    args: string[];
+    required_env: string[];
+  },
+  marketUrl?: string
+): Promise<RegisterMcpServerResult> {
+  const baseUrl = marketUrl || DEFAULT_MARKET_URL;
+  const res = await fetch(`${baseUrl}/api/v1/mcp-servers`, {
+    method: 'POST',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `注册MCP Server失败: ${res.status}`);
+  }
+  return res.json();
+}

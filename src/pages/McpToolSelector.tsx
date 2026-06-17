@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -14,6 +14,8 @@ import {
   Shield,
 } from 'lucide-react';
 import { mockMcpTools, mcpToolCategories } from '../data/mockMcpTools';
+import { listMarketMcpServers } from '../services/marketApi';
+import type { MarketMcpServerItem } from '../services/marketApi';
 import { useAgentStore } from '../store/useAgentStore';
 import type { McpTool, ConfigField } from '../types';
 import './McpToolSelector.css';
@@ -214,6 +216,44 @@ export default function McpToolSelector() {
   const [testingId, setTestingId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastData[]>([]);
 
+  // Market API: fetch MCP servers list (ref guards against Strict Mode double-fire)
+  const mcpFetchedRef = useRef(false);
+  const [marketMcpList, setMarketMcpList] = useState<MarketMcpServerItem[]>([]);
+  const [marketLoading, setMarketLoading] = useState(true);
+
+  useEffect(() => {
+    if (mcpFetchedRef.current) return;
+    mcpFetchedRef.current = true;
+    setMarketLoading(true);
+    listMarketMcpServers({ page_size: 100 })
+      .then((result) => setMarketMcpList(result.servers || []))
+      .catch(() => setMarketMcpList([]))
+      .finally(() => setMarketLoading(false));
+  }, []);
+
+  // Merge market data with mock data: mock provides rich config/permissions
+  const availableMcpTools = useMemo<McpTool[]>(() => {
+    if (marketMcpList.length === 0) return mockMcpTools;
+    return marketMcpList.map((ms) => {
+      const mock = mockMcpTools.find((m) => m.id === ms.id);
+      if (mock) return mock;
+      // Create minimal McpTool from market data
+      return {
+        id: ms.id,
+        name: ms.original_name,
+        description: ms.description,
+        icon: '🔧',
+        category: '工具',
+        author: '',
+        downloads: 0,
+        rating: 0,
+        configFields: [],
+        permissions: [],
+        status: 'active' as const,
+      } as McpTool;
+    });
+  }, [marketMcpList]);
+
   // ---- 计算属性：已添加的MCP工具ID集合 ----
   const addedToolIds = useMemo(
     () => new Set(agent.mcpTools.map((t) => t.toolId)),
@@ -222,7 +262,7 @@ export default function McpToolSelector() {
 
   // ---- 计算属性：过滤后的工具列表 ----
   const filteredTools = useMemo(() => {
-    return mockMcpTools.filter((tool) => {
+    return availableMcpTools.filter((tool) => {
       // 分类过滤
       const categoryMatch =
         activeCategory === '全部' || tool.category === activeCategory;
@@ -363,7 +403,7 @@ export default function McpToolSelector() {
             onClick={() => setActiveCategory('全部')}
           >
             全部
-            <span className="filter-count">{mockMcpTools.length}</span>
+            <span className="filter-count">{availableMcpTools.length}</span>
           </div>
           {mcpToolCategories.map((cat) => (
             <div
@@ -378,8 +418,14 @@ export default function McpToolSelector() {
         </div>
 
         {/* 工具卡片网格（2列） */}
-        <div className="mcp-grid">
-          {filteredTools.map((tool) => {
+        {marketLoading ? (
+          <div className="empty-state">
+            <div className="spinner" style={{ marginBottom: 12 }} />
+            <div className="empty-state-text">正在从市场加载 MCP 工具...</div>
+          </div>
+        ) : (
+          <div className="mcp-grid">
+            {filteredTools.map((tool) => {
             const isAdded = addedToolIds.has(tool.id);
             // 获取已配置工具的连接状态
             const configuredTool = agent.mcpTools.find((t) => t.toolId === tool.id);
@@ -450,10 +496,11 @@ export default function McpToolSelector() {
               </div>
             );
           })}
-        </div>
+          </div>
+        )}
 
         {/* 空搜索结果 */}
-        {filteredTools.length === 0 && (
+        {!marketLoading && filteredTools.length === 0 && (
           <div className="empty-state">
             <div className="empty-state-icon">🔍</div>
             <div className="empty-state-text">
@@ -481,8 +528,8 @@ export default function McpToolSelector() {
           </div>
         ) : (
           agent.mcpTools.map((toolRef) => {
-            // 从mockMcpTools中找到完整的工具数据
-            const fullTool = mockMcpTools.find((t) => t.id === toolRef.toolId);
+            // 从availableMcpTools中找到完整的工具数据
+            const fullTool = availableMcpTools.find((t) => t.id === toolRef.toolId);
             if (!fullTool) return null;
 
             const isExpanded = expandedToolId === toolRef.toolId;

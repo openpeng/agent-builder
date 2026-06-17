@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Globe, Home } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import StepSidebar from './StepSidebar';
 import PreviewPanel from './PreviewPanel';
 import { useAgentStore } from '../../store/useAgentStore';
@@ -23,24 +23,21 @@ export default function BuilderLayout({ children }: BuilderLayoutProps) {
       <header className="builder-header">
         <div className="header-left">
           <button
-            className="btn btn-ghost btn-sm"
+            className="brand-btn"
             onClick={() => navigate('/')}
             title="返回首页"
-            style={{ marginRight: '0.25rem' }}
           >
-            <Home size={14} />
+            <h1 className="header-title">AgentHub</h1>
           </button>
-          <h1 className="header-title">Agent 构建器</h1>
           {agent.name && !isMarketPage && <span className="header-agent-name">{agent.name}</span>}
         </div>
         <div className="header-right">
           <button
-            className={`btn btn-ghost ${isMarketPage ? 'active' : ''}`}
+            className="btn btn-ghost"
             onClick={() => navigate(isMarketPage ? '/' : '/market')}
-            title={isMarketPage ? '返回首页' : '前往 Agent 市场'}
           >
             <Globe size={16} />
-            {isMarketPage ? '返回首页' : 'Agent 市场'}
+            {isMarketPage ? '返回 AgentHub' : 'Agent 市场'}
           </button>
           {!isMarketPage && (
             <button className="btn btn-ghost" onClick={() => setShowPreview(!showPreview)}>

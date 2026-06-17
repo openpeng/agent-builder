@@ -19,8 +19,12 @@ import {
   Users,
   Check,
   Eye,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { useAgentStore } from '../store/useAgentStore';
+import { buildAgentPackage } from '../utils/packageBuilder';
+import { registerSkill, registerMcpServer, uploadMarketAgent } from '../services/marketApi';
 import type { PreviewMessage } from '../types';
 import './PreviewPublish.css';
 
@@ -80,13 +84,23 @@ export default function PreviewPublish() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
+  // 真实发布流程状态
+  const [publishStep, setPublishStep] = useState<
+    'idle' | 'packaging' | 'skills-register' | 'mcp-register' | 'agent-upload' | 'done' | 'error'
+  >('idle');
+  const [publishErrors, setPublishErrors] = useState<Array<{ step: string; message: string; isWarning: boolean }>>([]);
+  const [publishResultId, setPublishResultId] = useState<string | null>(null);
+  const [marketUrl, setMarketUrl] = useState<string>(
+    () => localStorage.getItem('agent_builder_market_url') || import.meta.env.VITE_MARKET_URL || 'http://localhost:8321'
+  );
+
   // ---- Refs ----
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ---- 配置校验 ----
   const validationItems: ValidationItem[] = useMemo(() => {
-    return [
+    const items: ValidationItem[] = [
       {
         key: 'name',
         label: 'Agent名称已填写',
@@ -99,19 +113,19 @@ export default function PreviewPublish() {
           agent.description.summary.trim().length > 0 ||
           agent.description.detail.trim().length > 0,
       },
-      {
-        key: 'skills',
-        label: '已选择至少一个Skill',
-        passed: agent.skills.length > 0,
-      },
-      {
+    ];
+
+    // MCP 工具已连接：仅当配置了 MCP 工具时才要求
+    if (agent.mcpTools.length > 0) {
+      items.push({
         key: 'mcp',
         label: 'MCP工具已连接',
-        passed:
-          agent.mcpTools.length > 0 && agent.mcpTools.every((t) => t.isConnected),
-      },
-    ];
-  }, [agent.name, agent.description.summary, agent.description.detail, agent.skills.length, agent.mcpTools]);
+        passed: agent.mcpTools.every((t) => t.isConnected),
+      });
+    }
+
+    return items;
+  }, [agent.name, agent.description.summary, agent.description.detail, agent.mcpTools]);
 
   const allValidationPassed = useMemo(
     () => validationItems.every((item) => item.passed),
@@ -204,18 +218,111 @@ export default function PreviewPublish() {
     inputRef.current?.focus();
   }, [clearPreviewMessages, agent.welcomeMessage, addPreviewMessage]);
 
-  // ---- 发布操作 ----
-  const handlePublish = useCallback(() => {
+  // ---- 真实发布操作 ----
+  const handlePublish = useCallback(async () => {
     if (!allValidationPassed || isPublishing) return;
     setIsPublishing(true);
+    setPublishErrors([]);
+    setPublishStep('packaging');
 
-    // 模拟发布过程（1.5秒）
-    setTimeout(() => {
+    try {
+      // Step 1: 序列化 + 打包
+      const { blob: packageBlob } = await buildAgentPackage(agent);
+      setPublishStep('skills-register');
+
+      // Step 2: 独立注册 Skills（并行，失败不阻塞）
+      if (agent.skills.length > 0) {
+        const skillResults = await Promise.allSettled(
+          agent.skills.map((skill) =>
+            registerSkill(
+              {
+                id: `${agent.name}/${skill.name}`,
+                original_name: skill.name || skill.skillId,
+                display_name: skill.name,
+                description: skill.description || '',
+                version: skill.version || '1.0.0',
+                category: skill.category || '',
+              },
+              marketUrl
+            )
+          )
+        );
+        skillResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            setPublishErrors((prev) => [
+              ...prev,
+              {
+                step: `Skill: ${agent.skills[index]?.name}`,
+                message: String(result.reason?.message || result.reason),
+                isWarning: true,
+              },
+            ]);
+          }
+        });
+      }
+
+      // Step 3: 独立注册 MCP Servers（并行，失败不阻塞）
+      setPublishStep('mcp-register');
+      if (agent.mcpTools.length > 0) {
+        const mcpResults = await Promise.allSettled(
+          agent.mcpTools.map((tool) => {
+            const config = tool.config || {};
+            return registerMcpServer(
+              {
+                id: `${agent.name}/${tool.name}`,
+                original_name: tool.name || tool.toolId,
+                description: tool.description || '',
+                command: typeof config.command === 'string' ? config.command : '',
+                args: Array.isArray(config.args) ? config.args : [],
+                required_env:
+                  typeof config.env === 'object' && config.env !== null
+                    ? Object.keys(config.env)
+                    : [],
+              },
+              marketUrl
+            );
+          })
+        );
+        mcpResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            setPublishErrors((prev) => [
+              ...prev,
+              {
+                step: `MCP: ${agent.mcpTools[index]?.name}`,
+                message: String(result.reason?.message || result.reason),
+                isWarning: true,
+              },
+            ]);
+          }
+        });
+      }
+
+      // Step 4: 上传 Agent 包
+      setPublishStep('agent-upload');
+      const file = new File([packageBlob], `${agent.name || 'agent'}.tar.gz`, {
+        type: 'application/gzip',
+      });
+      const uploadResult = await uploadMarketAgent(file, false, marketUrl);
+
+      setPublishStep('done');
+      setPublishResultId(uploadResult.id);
       updateAgent({ status: 'published' });
       setIsPublishing(false);
       setShowSuccessModal(true);
-    }, 1500);
-  }, [allValidationPassed, isPublishing, updateAgent]);
+    } catch (err: any) {
+      setPublishStep('error');
+      setPublishErrors((prev) => [
+        ...prev,
+        {
+          step: 'Agent 上传',
+          message: String(err.message || err),
+          isWarning: false,
+        },
+      ]);
+      setIsPublishing(false);
+      updateAgent({ status: 'draft' }); // rollback status
+    }
+  }, [allValidationPassed, isPublishing, agent, marketUrl, updateAgent]);
 
   // ---- 重置配置 ----
   const handleReset = useCallback(() => {
@@ -496,6 +603,25 @@ export default function PreviewPublish() {
             />
           </div>
 
+          {/* Market 服务地址 */}
+          <div className="publish-note-group">
+            <label className="publish-note-label">
+              <Globe size={12} style={{ marginRight: '0.3rem', verticalAlign: 'middle' }} />
+              Market 地址
+            </label>
+            <input
+              type="text"
+              className="publish-note-textarea"
+              style={{ height: '2.4rem', minHeight: '2.4rem' }}
+              placeholder="http://localhost:8321"
+              value={marketUrl}
+              onChange={(e) => {
+                setMarketUrl(e.target.value);
+                localStorage.setItem('agent_builder_market_url', e.target.value);
+              }}
+            />
+          </div>
+
           {/* 可见范围 */}
           <div className="visibility-options">
             <label className="visibility-options-label">可见范围</label>
@@ -529,6 +655,48 @@ export default function PreviewPublish() {
               </div>
             </div>
           </div>
+
+          {/* 发布进度 */}
+          {isPublishing && (
+            <div className="publish-progress">
+              <div className="publish-progress-steps">
+                <div className={`pp-step ${publishStep === 'packaging' ? 'active' : publishStep !== 'idle' ? 'done' : ''}`}>
+                  {publishStep !== 'packaging' && publishStep !== 'idle' && publishStep !== 'error' ? <CheckCircle size={14} /> : <Loader2 size={14} className={publishStep === 'packaging' ? 'spinning' : ''} />}
+                  <span>打包</span>
+                </div>
+                <div className="pp-divider" />
+                <div className={`pp-step ${publishStep === 'skills-register' ? 'active' : publishStep !== 'idle' && publishStep !== 'packaging' && publishStep !== 'error' ? 'done' : ''}`}>
+                  {publishStep !== 'skills-register' && publishStep !== 'idle' && publishStep !== 'packaging' && publishStep !== 'error' ? <CheckCircle size={14} /> : <Loader2 size={14} className={publishStep === 'skills-register' ? 'spinning' : ''} />}
+                  <span>Skills</span>
+                </div>
+                <div className="pp-divider" />
+                <div className={`pp-step ${publishStep === 'mcp-register' ? 'active' : publishStep !== 'idle' && publishStep !== 'packaging' && publishStep !== 'skills-register' && publishStep !== 'error' ? 'done' : ''}`}>
+                  {publishStep !== 'mcp-register' && publishStep !== 'idle' && publishStep !== 'packaging' && publishStep !== 'skills-register' && publishStep !== 'error' ? <CheckCircle size={14} /> : <Loader2 size={14} className={publishStep === 'mcp-register' ? 'spinning' : ''} />}
+                  <span>MCP</span>
+                </div>
+                <div className="pp-divider" />
+                <div className={`pp-step ${publishStep === 'agent-upload' ? 'active' : publishStep === 'done' ? 'done' : ''}`}>
+                  {publishStep === 'done' ? <CheckCircle size={14} /> : <Loader2 size={14} className={publishStep === 'agent-upload' ? 'spinning' : ''} />}
+                  <span>Agent</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 发布错误/警告 */}
+          {publishErrors.length > 0 && (
+            <div className="publish-errors">
+              {publishErrors.map((err, index) => (
+                <div key={index} className={`publish-error-item ${err.isWarning ? 'warning' : 'error'}`}>
+                  <AlertCircle size={12} style={{ marginRight: '0.3rem', flexShrink: 0 }} />
+                  <span>
+                    {err.step && <strong>{err.step}: </strong>}
+                    {err.message}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* 发布操作按钮 */}
           <div className="publish-actions">
@@ -593,6 +761,18 @@ export default function PreviewPublish() {
             <div className="success-modal-title">发布成功</div>
             <div className="success-modal-desc">
               你的Agent「{agent.name || '未命名'}」已成功发布！
+              {publishResultId && (
+                <>
+                  <br />
+                  <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>ID: {publishResultId}</span>
+                </>
+              )}
+              {publishErrors.length > 0 && (
+                <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', textAlign: 'left', color: '#d97706' }}>
+                  <AlertCircle size={12} style={{ verticalAlign: 'middle', marginRight: '0.2rem' }} />
+                  部分 Skill/MCP 注册出现问题（不影响 Agent 使用）
+                </div>
+              )}
               <br />
               现在其他人可以通过市场发现并使用它。
             </div>

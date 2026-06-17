@@ -16,7 +16,7 @@ export default function PreviewPanel() {
         <div className="agent-card-preview">
           <div className="agent-card-icon">
             {agent.icon ? (
-              <img src={agent.icon} alt={agent.name} />
+              <span className="agent-card-emoji">{agent.icon}</span>
             ) : (
               <div className="agent-icon-placeholder">AI</div>
             )}

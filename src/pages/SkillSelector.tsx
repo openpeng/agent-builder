@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -29,6 +29,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { mockSkills, skillCategories } from '../data/mockSkills';
+import { listMarketSkills } from '../services/marketApi';
+import type { MarketSkillItem } from '../services/marketApi';
 import { useAgentStore } from '../store/useAgentStore';
 import type { Skill, SkillParameter } from '../types';
 import './SkillSelector.css';
@@ -223,6 +225,45 @@ export default function SkillSelector() {
   const [activeCategory, setActiveCategory] = useState<string>('全部');
   const [expandedSkillId, setExpandedSkillId] = useState<string | null>(null);
 
+  // Market API: fetch skills list (ref guards against Strict Mode double-fire)
+  const skillsFetchedRef = useRef(false);
+  const [marketSkillsList, setMarketSkillsList] = useState<MarketSkillItem[]>([]);
+  const [marketLoading, setMarketLoading] = useState(true);
+
+  useEffect(() => {
+    if (skillsFetchedRef.current) return;
+    skillsFetchedRef.current = true;
+    setMarketLoading(true);
+    listMarketSkills({ page_size: 100 })
+      .then((result) => setMarketSkillsList(result.skills || []))
+      .catch(() => setMarketSkillsList([]))
+      .finally(() => setMarketLoading(false));
+  }, []);
+
+  // Merge market data with mock data: mock provides rich params, market provides the list
+  const availableSkills = useMemo<Skill[]>(() => {
+    if (marketSkillsList.length === 0) return mockSkills;
+    return marketSkillsList.map((ms) => {
+      const mock = mockSkills.find((m) => m.id === ms.id);
+      if (mock) return mock;
+      // Create minimal Skill from market data
+      return {
+        id: ms.id,
+        name: ms.display_name || ms.original_name,
+        version: '1.0.0',
+        description: ms.description,
+        icon: '🔧',
+        category: ms.category,
+        author: '',
+        downloads: 0,
+        rating: 0,
+        isOfficial: false,
+        parameters: [],
+        dependencies: [],
+      } as Skill;
+    });
+  }, [marketSkillsList]);
+
   // 拖拽传感器配置
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -240,7 +281,7 @@ export default function SkillSelector() {
 
   // ---- 计算属性：过滤后的Skill列表 ----
   const filteredSkills = useMemo(() => {
-    return mockSkills.filter((skill) => {
+    return availableSkills.filter((skill) => {
       // 分类过滤
       const categoryMatch =
         activeCategory === '全部' || skill.category === activeCategory;
@@ -379,7 +420,7 @@ export default function SkillSelector() {
             onClick={() => setActiveCategory('全部')}
           >
             全部
-            <span className="filter-count">{mockSkills.length}</span>
+            <span className="filter-count">{availableSkills.length}</span>
           </div>
           {skillCategories.map((cat) => (
             <div
@@ -394,8 +435,14 @@ export default function SkillSelector() {
         </div>
 
         {/* Skill卡片网格 */}
-        <div className="skill-grid">
-          {filteredSkills.map((skill) => {
+        {marketLoading ? (
+          <div className="empty-state">
+            <div className="spinner" style={{ marginBottom: 12 }} />
+            <div className="empty-state-text">正在从市场加载 Skills...</div>
+          </div>
+        ) : (
+          <div className="skill-grid">
+            {filteredSkills.map((skill) => {
             const isSelected = selectedSkillIds.has(skill.id);
             return (
               <div
@@ -451,10 +498,11 @@ export default function SkillSelector() {
               </div>
             );
           })}
-        </div>
+          </div>
+        )}
 
         {/* 空搜索结果 */}
-        {filteredSkills.length === 0 && (
+        {!marketLoading && filteredSkills.length === 0 && (
           <div className="empty-state">
             <div className="empty-state-icon">🔍</div>
             <div className="empty-state-text">
@@ -491,8 +539,8 @@ export default function SkillSelector() {
               strategy={verticalListSortingStrategy}
             >
               {agent.skills.map((skillRef) => {
-                // 从mockSkills中找到完整的Skill数据
-                const fullSkill = mockSkills.find((s) => s.id === skillRef.skillId);
+                // 从availableSkills中找到完整的Skill数据
+                const fullSkill = availableSkills.find((s) => s.id === skillRef.skillId);
                 if (!fullSkill) return null;
 
                 return (

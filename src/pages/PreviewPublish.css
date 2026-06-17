@@ -925,3 +925,84 @@
     height: 360px;
   }
 }
+
+/* ============================================================
+ *  发布进度条
+ * ============================================================ */
+.publish-progress {
+  background: var(--bg-secondary, #1e2433);
+  border: 1px solid var(--border, #2a3040);
+  border-radius: var(--radius, 8px);
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.publish-progress-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.pp-step {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--muted, #6b7280);
+  white-space: nowrap;
+}
+
+.pp-step.active {
+  color: var(--primary, #6366f1);
+}
+
+.pp-step.done {
+  color: var(--success, #10b981);
+}
+
+.pp-divider {
+  width: 1rem;
+  height: 1px;
+  background: var(--border, #2a3040);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* ============================================================
+ *  发布错误/警告
+ * ============================================================ */
+.publish-errors {
+  background: var(--bg-secondary, #1e2433);
+  border: 1px solid var(--border, #2a3040);
+  border-radius: var(--radius, 8px);
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.8rem;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.publish-error-item {
+  display: flex;
+  align-items: flex-start;
+  font-size: 0.7rem;
+  padding: 0.2rem 0;
+  color: var(--danger, #ef4444);
+  line-height: 1.4;
+}
+
+.publish-error-item.warning {
+  color: var(--warning, #f59e0b);
+}
+
+.publish-error-item + .publish-error-item {
+  border-top: 1px solid var(--border, #2a3040);
+  padding-top: 0.3rem;
+  margin-top: 0.1rem;
+}
