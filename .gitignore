@@ -71,3 +71,12 @@ temp/
 
 # Patches
 *.patch
+
+# Agent test files
+test-agents/*/
+
+# Temporary copies (should not be committed)
+agent-deploy-temp/
+
+# Uploads
+.uploads/
