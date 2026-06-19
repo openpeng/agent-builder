@@ -568,10 +568,22 @@ export default function MarketPage() {
       {/* Tabs + Status */}
       <div className="market-tabs">
         <button
-          className={`market-tab ${activeTab === 'market' ? 'active' : ''}`}
-          onClick={() => setActiveTab('market')}
+          className={`market-tab ${activeTab === 'market' && activeEntity === 'agent' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('market'); setActiveEntity('agent'); setSelectedAgent(null); }}
         >
-          <Search size={14} /> 浏览市场
+          <Search size={14} /> Agent
+        </button>
+        <button
+          className={`market-tab ${activeTab === 'market' && activeEntity === 'team' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('market'); setActiveEntity('team'); setSelectedAgent(null); }}
+        >
+          <Search size={14} /> Team
+        </button>
+        <button
+          className={`market-tab ${activeTab === 'market' && activeEntity === 'workflow' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('market'); setActiveEntity('workflow'); setSelectedAgent(null); }}
+        >
+          <Search size={14} /> Workflow
         </button>
         <button
           className={`market-tab ${activeTab === 'skills' ? 'active' : ''}`}
@@ -608,24 +620,6 @@ export default function MarketPage() {
       {/* ========== MARKET TAB ========== */}
       {activeTab === 'market' && (
         <div className="market-tab-content">
-          {/* Entity selector */}
-          <div className="entity-selector">
-            {(['agent', 'team', 'workflow'] as const).map((ent) => (
-              <button
-                key={ent}
-                className={activeEntity === ent ? 'active' : ''}
-                onClick={() => {
-                  setActiveEntity(ent);
-                  setSelectedAgent(null);
-                  setResults([]);
-                  setPage(1);
-                }}
-              >
-                {ent === 'agent' ? 'Agent' : ent === 'team' ? 'Team' : 'Workflow'}
-              </button>
-            ))}
-          </div>
-
           {/* Search bar */}
           <div className="market-search-row">
             <div className="market-search-box">
@@ -933,24 +927,6 @@ export default function MarketPage() {
       {/* ========== UPLOAD TAB ========== */}
       {activeTab === 'upload' && (
         <div className="market-tab-content">
-          {/* Entity selector for upload */}
-          <div className="entity-selector">
-            {(['agent', 'team', 'workflow'] as const).map((ent) => (
-              <button
-                key={ent}
-                className={activeEntity === ent ? 'active' : ''}
-                onClick={() => {
-                  setActiveEntity(ent);
-                  setUploadFile(null);
-                  setUploadResult(null);
-                  setUploadError(null);
-                }}
-              >
-                {ent === 'agent' ? 'Agent' : ent === 'team' ? 'Team' : 'Workflow'}
-              </button>
-            ))}
-          </div>
-
           <div className="market-upload-card">
             <div
               className="market-upload-zone"
