@@ -1,1 +1,0 @@
-{"schema_version":"2.0","identity":{"name":"test-upload","version":"1.0.0","display_name":"Test Upload","description":"CLI upload fix test","author":"test"},"instructions":{"format":"markdown","source":"inline","content":"Test agent for upload verification."}}

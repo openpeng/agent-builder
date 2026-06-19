@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "bark": {
-      "type": "http",
-      "url": "https://api.day.app/mcp/Q52aXRfJJDJTxzuubT8FNX"
-    }
-  }
-}
