@@ -620,6 +620,28 @@ export default function MarketPage() {
       {/* ========== MARKET TAB ========== */}
       {activeTab === 'market' && (
         <div className="market-tab-content">
+          {/* Entity intro */}
+          {page === 1 && !searchQuery && !loading && (
+            <div className="market-entity-intro">
+              {activeEntity === 'team' ? (
+                <>
+                  <h3>团队协作</h3>
+                  <p>将多个 Agent 组合成协作团队，分工配合完成复杂任务。团队成员可以传递上下文、共享结果，实现多角色协同。</p>
+                </>
+              ) : activeEntity === 'workflow' ? (
+                <>
+                  <h3>自动化工作流</h3>
+                  <p>预定义的多步骤流程模板，支持条件分支、循环迭代和外部系统集成，将复杂业务流程一键自动化。</p>
+                </>
+              ) : (
+                <>
+                  <h3>Agent 市场</h3>
+                  <p>发现和导入社区共享的智能 Agent，每个 Agent 都配置了 Skills 和 MCP 工具，开箱即用。</p>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Search bar */}
           <div className="market-search-row">
             <div className="market-search-box">

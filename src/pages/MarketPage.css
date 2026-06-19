@@ -64,6 +64,27 @@
   padding: 1.25rem 1.5rem;
 }
 
+/* Entity intro banner */
+.market-entity-intro {
+  background: var(--bg2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.market-entity-intro h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.market-entity-intro p {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 /* Toast */
 .market-toast {
   position: fixed;
