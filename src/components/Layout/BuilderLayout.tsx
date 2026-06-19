@@ -22,17 +22,22 @@ export default function BuilderLayout({ children }: BuilderLayoutProps) {
     <div className="builder-layout">
       <header className="builder-header">
         <div className="header-left">
-          <h1 className="header-title">Agent 构建器</h1>
+          <button
+            className="brand-btn"
+            onClick={() => navigate('/')}
+            title="返回首页"
+          >
+            <h1 className="header-title">AgentHub</h1>
+          </button>
           {agent.name && !isMarketPage && <span className="header-agent-name">{agent.name}</span>}
         </div>
         <div className="header-right">
           <button
-            className={`btn btn-ghost ${isMarketPage ? 'active' : ''}`}
-            onClick={() => navigate(isMarketPage ? '/quick-start' : '/market')}
-            title={isMarketPage ? '返回构建器' : '前往 Agent 市场'}
+            className="btn btn-ghost"
+            onClick={() => navigate(isMarketPage ? '/' : '/market')}
           >
             <Globe size={16} />
-            {isMarketPage ? '返回构建器' : 'Agent 市场'}
+            {isMarketPage ? '返回 AgentHub' : 'Agent 市场'}
           </button>
           {!isMarketPage && (
             <button className="btn btn-ghost" onClick={() => setShowPreview(!showPreview)}>

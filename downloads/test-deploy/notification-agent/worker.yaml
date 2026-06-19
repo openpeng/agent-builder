@@ -1,0 +1,24 @@
+pipeline:
+  - step: prepare_message
+    tool: write_file
+    args:
+      path: ".notification.log"
+      content: "Preparing notification: {{title}} - {{body}}"
+    output: log_result
+
+  - step: send_notification
+    tool: web_fetch
+    args:
+      url: "https://api.day.app/Q52aXRfJJDJTxzuubT8FNX/{{title}}/{{body}}"
+      method: GET
+    output: bark_response
+
+  - step: log_result
+    tool: write_file
+    args:
+      path: ".notification.log"
+      content: "Notification sent at {{timestamp}}\nTitle: {{title}}\nBody: {{body}}\nResponse: {{steps.send_notification.output.status}}"
+      mode: append
+
+shared_context:
+  timestamp: "2026-06-06T14:30:00Z"

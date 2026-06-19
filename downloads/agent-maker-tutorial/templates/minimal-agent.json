@@ -1,0 +1,21 @@
+{
+  "identity": {
+    "name": "my-agent",                /* Agent 唯一 ID（英文） */
+    "version": "1.0.0",                /* 语义版本号 */
+    "description": "Describe what your agent does",  /* 简短描述 */
+    "author": "Your Name"
+  },
+  "entry": {
+    "main_subagent": "worker"          /* 入口子 Agent 名称 */
+  },
+  "subagents": [
+    {
+      "name": "worker",                /* 子 Agent 名称 */
+      "path": "worker.yaml",           /* 工作流文件路径 */
+      "description": "Main workflow"
+    }
+  ],
+  "category": "general",               /* 分类：general/browser/data_analysis... */
+  "type": "agent",                     /* 类型：agent/skill/workflow */
+  "tags": ["tag1", "tag2"]             /* 搜索标签 */
+}

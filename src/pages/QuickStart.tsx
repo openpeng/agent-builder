@@ -1,26 +1,38 @@
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { useAgentStore } from '../store/useAgentStore';
+import MarketImportModal from '../components/MarketImportModal';
+import AiAutoFillModal from '../components/AiAutoFillModal';
+import type { AgentConfig } from '../types';
 import './QuickStart.css';
 
 export default function QuickStart() {
   const navigate = useNavigate();
-  const { agent, resetAgent } = useAgentStore();
+  const { agent, resetAgent, importFromMarket, fillFromAI } = useAgentStore();
+
+  // Modal states
+  const [showMarketImport, setShowMarketImport] = useState(false);
+  const [showAiFill, setShowAiFill] = useState(false);
 
   const handleManualCreate = () => {
     resetAgent();
     navigate('/intro');
   };
 
-  const handleMarketImport = () => {
-    // 触发 MarketImportModal — 通过 custom event
-    window.dispatchEvent(new CustomEvent('open-market-import'));
-  };
+  // --- Market import callback ---
+  const handleMarketImport = useCallback((config: Partial<AgentConfig>) => {
+    importFromMarket(config);
+    setShowMarketImport(false);
+    navigate('/intro');
+  }, [importFromMarket, navigate]);
 
-  const handleAiFill = () => {
-    // 触发 AiAutoFillModal — 通过 custom event
-    window.dispatchEvent(new CustomEvent('open-ai-fill'));
-  };
+  // --- AI fill callback ---
+  const handleAiFillApply = useCallback((config: Partial<AgentConfig>) => {
+    fillFromAI(config);
+    setShowAiFill(false);
+    navigate('/intro');
+  }, [fillFromAI, navigate]);
 
   return (
     <div className="quickstart-page">
@@ -31,7 +43,7 @@ export default function QuickStart() {
 
       <div className="quickstart-methods">
         {/* 从市场导入 */}
-        <div className="quickstart-card" onClick={handleMarketImport}>
+        <div className="quickstart-card" onClick={() => setShowMarketImport(true)}>
           <span className="quickstart-card-badge recommend">推荐</span>
           <div className="quickstart-card-icon">📥</div>
           <div className="quickstart-card-title">从市场导入</div>
@@ -42,7 +54,7 @@ export default function QuickStart() {
         </div>
 
         {/* AI 智能填写 */}
-        <div className="quickstart-card ai-card" onClick={handleAiFill}>
+        <div className="quickstart-card ai-card" onClick={() => setShowAiFill(true)}>
           <span className="quickstart-card-badge smart">智能</span>
           <div className="quickstart-card-icon">✨</div>
           <div className="quickstart-card-title">AI 智能填写</div>
@@ -80,6 +92,22 @@ export default function QuickStart() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modals */}
+      {showMarketImport && (
+        <MarketImportModal
+          open={showMarketImport}
+          onClose={() => setShowMarketImport(false)}
+          onImport={handleMarketImport}
+        />
+      )}
+      {showAiFill && (
+        <AiAutoFillModal
+          open={showAiFill}
+          onClose={() => setShowAiFill(false)}
+          onApply={handleAiFillApply}
+        />
       )}
     </div>
   );
