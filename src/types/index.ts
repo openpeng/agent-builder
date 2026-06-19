@@ -114,3 +114,59 @@ export interface PreviewMessage {
   content: string;
   timestamp: string;
 }
+
+// 市场 Team 类型
+export interface MarketTeamListItem {
+  id: string;
+  display_name: string;
+  version: string;
+  description: string;
+  category: string;
+  tags: string[];
+  download_count: number;
+  rating: number;
+  package_size: number;
+  created_at: string;
+}
+
+export interface MarketTeamDetail extends MarketTeamListItem {
+  name: string;
+  author: string;
+  type: string;
+  readme: string;
+  license: string;
+  homepage_url: string;
+  source_url: string;
+  dependencies: Record<string, any>;
+  json_content: string;
+  updated_at: string;
+  published_at: string | null;
+}
+
+// 市场 Workflow 类型（结构与 Team 相同）
+export interface MarketWorkflowListItem {
+  id: string;
+  display_name: string;
+  version: string;
+  description: string;
+  category: string;
+  tags: string[];
+  download_count: number;
+  rating: number;
+  package_size: number;
+  created_at: string;
+}
+
+export interface MarketWorkflowDetail extends MarketWorkflowListItem {
+  name: string;
+  author: string;
+  type: string;
+  readme: string;
+  license: string;
+  homepage_url: string;
+  source_url: string;
+  dependencies: Record<string, any>;
+  json_content: string;
+  updated_at: string;
+  published_at: string | null;
+}

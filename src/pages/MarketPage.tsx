@@ -22,6 +22,18 @@ import {
   submitMarketRating,
   deleteMarketAgent,
   uploadMarketAgent,
+  searchMarketTeams,
+  getMarketTeamDetail,
+  getMarketTeamRatings,
+  submitMarketTeamRating,
+  deleteMarketTeam,
+  uploadMarketTeam,
+  searchMarketWorkflows,
+  getMarketWorkflowDetail,
+  getMarketWorkflowRatings,
+  submitMarketWorkflowRating,
+  deleteMarketWorkflow,
+  uploadMarketWorkflow,
   checkMarketHealth,
   listApiKeys,
   createApiKey,
@@ -34,9 +46,14 @@ import { useAgentStore } from '../store/useAgentStore';
 import type {
   MarketAgentListItem,
   MarketAgentDetail,
+  MarketTeamListItem,
+  MarketTeamDetail,
+  MarketWorkflowListItem,
+  MarketWorkflowDetail,
   RatingsResult,
   ApiKeyItem,
   HealthStatus,
+  UploadResult,
 } from '../services/marketApi';
 import './MarketPage.css';
 
@@ -61,16 +78,19 @@ export default function MarketPage() {
   // ---- Tab state ----
   const [activeTab, setActiveTab] = useState<'market' | 'upload' | 'keys'>('market');
 
+  // ---- Entity type selector: agent / team / workflow ----
+  const [activeEntity, setActiveEntity] = useState<'agent' | 'team' | 'workflow'>('agent');
+
   // ---- Market tab state ----
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('全部');
   const [selectedType, setSelectedType] = useState('');
   const [selectedSort, setSelectedSort] = useState('downloads');
   const [selectedOrder, setSelectedOrder] = useState<'asc' | 'desc'>('desc');
-  const [results, setResults] = useState<MarketAgentListItem[]>([]);
+  const [results, setResults] = useState<(MarketAgentListItem | MarketTeamListItem | MarketWorkflowListItem)[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [selectedAgent, setSelectedAgent] = useState<MarketAgentDetail | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<MarketAgentDetail | MarketTeamDetail | MarketWorkflowDetail | null>(null);
   const [ratings, setRatings] = useState<RatingsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -128,7 +148,15 @@ export default function MarketPage() {
       if (query.trim()) params.q = query.trim();
       if (category !== '全部') params.category = category;
       if (type) params.type = type;
-      const result = await searchMarketAgents(params);
+
+      let result: { items: any[]; total: number };
+      if (activeEntity === 'team') {
+        result = await searchMarketTeams(params);
+      } else if (activeEntity === 'workflow') {
+        result = await searchMarketWorkflows(params);
+      } else {
+        result = await searchMarketAgents(params);
+      }
       setResults(result.items || []);
       setTotal(result.total || 0);
     } catch (err: any) {
@@ -138,7 +166,7 @@ export default function MarketPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeEntity]);
 
   // ---- Search debounce ----
   useEffect(() => {
@@ -151,18 +179,32 @@ export default function MarketPage() {
     return () => {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [searchQuery, selectedCategory, selectedType, selectedSort, selectedOrder, doSearch]);
+  }, [searchQuery, selectedCategory, selectedType, selectedSort, selectedOrder, activeEntity, doSearch]);
 
-  // ---- Load agent detail ----
-  const handleSelectAgent = async (agent: MarketAgentListItem) => {
+  // ---- Load detail ----
+  const handleSelectAgent = async (item: MarketAgentListItem | MarketTeamListItem | MarketWorkflowListItem) => {
     setDetailLoading(true);
     setPendingScore(0);
     setRatingComment('');
     try {
-      const [detail, ratingsData] = await Promise.all([
-        getMarketAgentDetail(agent.id),
-        getMarketAgentRatings(agent.id),
-      ]);
+      let detail: MarketAgentDetail | MarketTeamDetail | MarketWorkflowDetail;
+      let ratingsData: RatingsResult;
+      if (activeEntity === 'team') {
+        [detail, ratingsData] = await Promise.all([
+          getMarketTeamDetail(item.id),
+          getMarketTeamRatings(item.id),
+        ]);
+      } else if (activeEntity === 'workflow') {
+        [detail, ratingsData] = await Promise.all([
+          getMarketWorkflowDetail(item.id),
+          getMarketWorkflowRatings(item.id),
+        ]);
+      } else {
+        [detail, ratingsData] = await Promise.all([
+          getMarketAgentDetail(item.id),
+          getMarketAgentRatings(item.id),
+        ]);
+      }
       setSelectedAgent(detail);
       setRatings(ratingsData);
     } catch (err: any) {
@@ -172,17 +214,17 @@ export default function MarketPage() {
     }
   };
 
-  // ---- Import agent to builder ----
+  // ---- Import to builder ----
   const handleImport = async () => {
     if (!selectedAgent) return;
 
     let detail = { ...selectedAgent };
 
-    // 如果 json_content 为空，尝试通过下载包来获取完整的 agent.json
     if (!detail.json_content || detail.json_content === '{}') {
       try {
         const marketUrl = import.meta.env.VITE_MARKET_URL || 'http://localhost:8321';
-        const downloadUrl = `${marketUrl}/api/v1/agents/${encodeURIComponent(detail.id)}/download`;
+        const entityPath = activeEntity === 'team' ? 'teams' : activeEntity === 'workflow' ? 'workflows' : 'agents';
+        const downloadUrl = `${marketUrl}/api/v1/${entityPath}/${encodeURIComponent(detail.id)}/download`;
         const resp = await fetch(downloadUrl, { headers: getHeaders() });
         if (resp.ok) {
           const blob = await resp.blob();
@@ -198,7 +240,8 @@ export default function MarketPage() {
 
     const config = mapMarketAgentToConfig(detail);
     importFromMarket(config);
-    showToast(`已导入「${detail.display_name}」，前往编辑`, 'success');
+    const entityLabel = activeEntity === 'team' ? 'Team' : activeEntity === 'workflow' ? 'Workflow' : 'Agent';
+    showToast(`已导入${entityLabel}「${detail.display_name}」，前往编辑`, 'success');
     setTimeout(() => navigate('/intro'), 800);
   };
 
@@ -222,9 +265,17 @@ export default function MarketPage() {
     setUploadError(null);
     setUploadResult(null);
     try {
-      const result = await uploadMarketAgent(uploadFile, uploadForce);
+      let result: UploadResult;
+      if (activeEntity === 'team') {
+        result = await uploadMarketTeam(uploadFile, uploadForce);
+      } else if (activeEntity === 'workflow') {
+        result = await uploadMarketWorkflow(uploadFile, uploadForce);
+      } else {
+        result = await uploadMarketAgent(uploadFile, uploadForce);
+      }
       setUploadResult(`上传成功！ID: ${result.id}, 版本: ${result.version}`);
-      showToast('Agent 上传成功', 'success');
+      const label = activeEntity === 'team' ? 'Team' : activeEntity === 'workflow' ? 'Workflow' : 'Agent';
+      showToast(`${label} 上传成功`, 'success');
       setUploadFile(null);
     } catch (err: any) {
       setUploadError(err.message || '上传失败');
@@ -310,12 +361,25 @@ export default function MarketPage() {
     }
     setSubmittingRating(true);
     try {
-      await submitMarketRating(selectedAgent.id, pendingScore, ratingComment);
+      if (activeEntity === 'team') {
+        await submitMarketTeamRating(selectedAgent.id, pendingScore, ratingComment);
+      } else if (activeEntity === 'workflow') {
+        await submitMarketWorkflowRating(selectedAgent.id, pendingScore, ratingComment);
+      } else {
+        await submitMarketRating(selectedAgent.id, pendingScore, ratingComment);
+      }
       showToast('评分提交成功', 'success');
       setPendingScore(0);
       setRatingComment('');
       // Refresh ratings
-      const ratingsData = await getMarketAgentRatings(selectedAgent.id);
+      let ratingsData: RatingsResult;
+      if (activeEntity === 'team') {
+        ratingsData = await getMarketTeamRatings(selectedAgent.id);
+      } else if (activeEntity === 'workflow') {
+        ratingsData = await getMarketWorkflowRatings(selectedAgent.id);
+      } else {
+        ratingsData = await getMarketAgentRatings(selectedAgent.id);
+      }
       setRatings(ratingsData);
     } catch (err: any) {
       showToast(err.message || '评分失败', 'error');
@@ -324,12 +388,19 @@ export default function MarketPage() {
     }
   };
 
-  // ---- Delete agent ----
+  // ---- Delete ----
   const handleDeleteAgent = async (id: string, name: string) => {
-    if (!confirm(`确定删除 Agent「${name}」？此操作不可撤销。`)) return;
+    const entityLabel = activeEntity === 'team' ? 'Team' : activeEntity === 'workflow' ? 'Workflow' : 'Agent';
+    if (!confirm(`确定删除 ${entityLabel}「${name}」？此操作不可撤销。`)) return;
     try {
-      await deleteMarketAgent(id);
-      showToast('Agent 已删除', 'success');
+      if (activeEntity === 'team') {
+        await deleteMarketTeam(id);
+      } else if (activeEntity === 'workflow') {
+        await deleteMarketWorkflow(id);
+      } else {
+        await deleteMarketAgent(id);
+      }
+      showToast(`${entityLabel} 已删除`, 'success');
       setSelectedAgent(null);
       doSearch(searchQuery, selectedCategory, selectedType, selectedSort, selectedOrder, page);
     } catch (err: any) {
@@ -383,13 +454,31 @@ export default function MarketPage() {
       {/* ========== MARKET TAB ========== */}
       {activeTab === 'market' && (
         <div className="market-tab-content">
+          {/* Entity selector */}
+          <div className="entity-selector">
+            {(['agent', 'team', 'workflow'] as const).map((ent) => (
+              <button
+                key={ent}
+                className={activeEntity === ent ? 'active' : ''}
+                onClick={() => {
+                  setActiveEntity(ent);
+                  setSelectedAgent(null);
+                  setResults([]);
+                  setPage(1);
+                }}
+              >
+                {ent === 'agent' ? 'Agent' : ent === 'team' ? 'Team' : 'Workflow'}
+              </button>
+            ))}
+          </div>
+
           {/* Search bar */}
           <div className="market-search-row">
             <div className="market-search-box">
               <Search size={16} className="market-search-icon" />
               <input
                 type="text"
-                placeholder="搜索 Agent 名称或描述..."
+                placeholder={`搜索 ${activeEntity === 'team' ? 'Team' : activeEntity === 'workflow' ? 'Workflow' : 'Agent'} 名称或描述...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -444,7 +533,7 @@ export default function MarketPage() {
               ) : results.length === 0 ? (
                 <div className="market-empty-center">
                   <Package size={40} />
-                  <div>未找到匹配的 Agent</div>
+                  <div>未找到匹配的 {activeEntity === 'team' ? 'Team' : activeEntity === 'workflow' ? 'Workflow' : 'Agent'}</div>
                   <div className="hint">尝试其他关键词或分类</div>
                 </div>
               ) : (
@@ -516,13 +605,16 @@ export default function MarketPage() {
                 ) : (
                   <div className="market-empty-center">
                     <Server size={32} />
-                    <div>点击左侧 Agent 查看详情</div>
+                    <div>点击左侧 {activeEntity === 'team' ? 'Team' : activeEntity === 'workflow' ? 'Workflow' : 'Agent'} 查看详情</div>
                   </div>
                 )
               ) : (
                 <div className="market-detail-content">
                   <div className="market-detail-header">
                     <h3>{selectedAgent.display_name}</h3>
+                    <span className="market-detail-entity-badge">
+                      {selectedAgent.type === 'team' ? 'Team' : selectedAgent.type === 'workflow' ? 'Workflow' : 'Agent'}
+                    </span>
                     <button className="btn btn-ghost btn-sm" onClick={() => setSelectedAgent(null)}>
                       <X size={14} />
                     </button>
@@ -571,14 +663,19 @@ export default function MarketPage() {
                     <button className="btn btn-primary" onClick={handleImport}>
                       <Download size={14} /> 导入到构建器
                     </button>
-                    <a
-                      className="btn btn-outline"
-                      href={`${import.meta.env.VITE_MARKET_URL || 'http://localhost:8321'}/api/v1/agents/${encodeURIComponent(selectedAgent.id)}/download`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Package size={14} /> 下载包
-                    </a>
+                    {(() => {
+                      const entityPath = selectedAgent.type === 'team' ? 'teams' : selectedAgent.type === 'workflow' ? 'workflows' : 'agents';
+                      return (
+                        <a
+                          className="btn btn-outline"
+                          href={`${import.meta.env.VITE_MARKET_URL || 'http://localhost:8321'}/api/v1/${entityPath}/${encodeURIComponent(selectedAgent.id)}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Package size={14} /> 下载包
+                        </a>
+                      );
+                    })()}
                     <button
                       className="btn btn-danger btn-sm"
                       onClick={() => handleDeleteAgent(selectedAgent.id, selectedAgent.display_name)}
@@ -640,13 +737,31 @@ export default function MarketPage() {
       {/* ========== UPLOAD TAB ========== */}
       {activeTab === 'upload' && (
         <div className="market-tab-content">
+          {/* Entity selector for upload */}
+          <div className="entity-selector">
+            {(['agent', 'team', 'workflow'] as const).map((ent) => (
+              <button
+                key={ent}
+                className={activeEntity === ent ? 'active' : ''}
+                onClick={() => {
+                  setActiveEntity(ent);
+                  setUploadFile(null);
+                  setUploadResult(null);
+                  setUploadError(null);
+                }}
+              >
+                {ent === 'agent' ? 'Agent' : ent === 'team' ? 'Team' : 'Workflow'}
+              </button>
+            ))}
+          </div>
+
           <div
             className="market-upload-zone"
             ref={uploadZoneRef}
             onClick={() => document.getElementById('uploadFileInput')?.click()}
           >
             <Package size={48} />
-            <div>点击或拖拽上传 Agent 包</div>
+            <div>点击或拖拽上传 {activeEntity === 'team' ? 'Team' : activeEntity === 'workflow' ? 'Workflow' : 'Agent'} 包</div>
             <div className="hint">支持 .tar.gz / .zip 格式，最大 50MB</div>
             <input
               id="uploadFileInput"
