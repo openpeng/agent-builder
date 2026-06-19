@@ -7,6 +7,8 @@ import type {
   MarketWorkflowDetail,
 } from '../types';
 
+export type { MarketTeamListItem, MarketTeamDetail, MarketWorkflowListItem, MarketWorkflowDetail };
+
 const DEFAULT_MARKET_URL = import.meta.env.VITE_MARKET_URL || 'http://localhost:8321';
 
 export interface MarketAgentListItem {
@@ -226,7 +228,6 @@ export async function checkMarketHealth(marketUrl?: string): Promise<HealthStatu
   }
 }
 
-<<<<<<< HEAD
 // ─── Team API ───
 
 export interface MarketTeamSearchResult {
@@ -415,12 +416,10 @@ export async function registerSkill(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `注册Skill失败: ${res.status}`);
->>>>>>> 1df5d541d6da90e1bebbbc5bcef7a709061ff073
   }
   return res.json();
 }
 
-<<<<<<< HEAD
 // ─── Workflow API ───
 
 export interface MarketWorkflowSearchResult {
@@ -609,7 +608,6 @@ export async function registerMcpServer(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `注册MCP Server失败: ${res.status}`);
->>>>>>> 1df5d541d6da90e1bebbbc5bcef7a709061ff073
   }
   return res.json();
 }

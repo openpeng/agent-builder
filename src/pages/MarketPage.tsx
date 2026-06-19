@@ -608,7 +608,6 @@ export default function MarketPage() {
       {/* ========== MARKET TAB ========== */}
       {activeTab === 'market' && (
         <div className="market-tab-content">
-<<<<<<< HEAD
           {/* Entity selector */}
           <div className="entity-selector">
             {(['agent', 'team', 'workflow'] as const).map((ent) => (
@@ -728,7 +727,7 @@ export default function MarketPage() {
                       </div>
                       {agent.tags?.length > 0 && (
                         <div className="market-agent-card-tags">
-                          {agent.tags.slice(0, 3).map((tag) => (
+                          {agent.tags.slice(0, 3).map((tag: string) => (
                             <span key={tag} className="market-tag">{tag}</span>
                           ))}
                         </div>
@@ -841,7 +840,6 @@ export default function MarketPage() {
                   )}
 
                   <div className="market-detail-actions">
-<<<<<<< HEAD
                     <button className="btn btn-primary" onClick={handleImport}>
                       <Download size={14} /> 导入到构建器
                     </button>
@@ -935,7 +933,6 @@ export default function MarketPage() {
       {/* ========== UPLOAD TAB ========== */}
       {activeTab === 'upload' && (
         <div className="market-tab-content">
-<<<<<<< HEAD
           {/* Entity selector for upload */}
           <div className="entity-selector">
             {(['agent', 'team', 'workflow'] as const).map((ent) => (
